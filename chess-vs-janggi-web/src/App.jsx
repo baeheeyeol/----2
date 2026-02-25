@@ -15,7 +15,7 @@ function App() {
     const savedUser = localStorage.getItem(STORAGE_KEY);
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  // 방정보
+  // 방정보 ss
   const [currentRoom, setCurrentRoom] = useState(null);
 
   // [핵심] 소켓 이벤트 리스너 등록 (앱이 켜질 때 한 번만 실행)
