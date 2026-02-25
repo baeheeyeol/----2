@@ -5,7 +5,6 @@ const RoomListItem = ({ room, onJoin }) => {
     const statusClass = room.status === 'WAITING' ? 'waiting' : 'playing';
     const statusText = room.status === 'WAITING' ? '대기중' : '게임중';
 
-
     return (
         <div className={`room-item-card ${statusClass}`}>
             <div className="room-info-header">

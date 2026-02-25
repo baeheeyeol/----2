@@ -15,7 +15,7 @@ function App() {
     const savedUser = localStorage.getItem(STORAGE_KEY);
     return savedUser ? JSON.parse(savedUser) : null;
   });
-  // 방정보 ss
+  // 방정보
   const [currentRoom, setCurrentRoom] = useState(null);
 
   // [핵심] 소켓 이벤트 리스너 등록 (앱이 켜질 때 한 번만 실행)
@@ -72,6 +72,7 @@ function App() {
       socket.off('room_update');
     };
   }, []);
+
   // 2. 로그인 요청 핸들러
   const handleLogin = (id, pw) => {
     if (!id) return;
@@ -92,25 +93,39 @@ function App() {
       setCurrentRoom(null); // 다시 로비로 이동
     }
   };
+  // 브라우저 종료밑 뒤로가기등등 사이트 이탈시 소켓 연결 끊기
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      socket.disconnect();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
   return (
     <div className="app-container">
       <LobbyHeader user={user} onLogin={handleLogin} onLogout={handleLogout} />
 
       <main className="main-content">
-        {currentRoom ? (
-          /* [A] 게임 대기실 뷰 (방 안에 있을 때) */
-          <RoomPage room={currentRoom} user={user} onLeave={handleLeaveRoom} />
-        ) : (
-          /* [B] 로비 뷰 (방 밖에 있을 때) */
-          <>
+
+        <>
+          {currentRoom ? (
+            /* [A] 게임 대기실 뷰 (방 안에 있을 때) */
+            <section className="room-list-section">
+              <RoomPage room={currentRoom} user={user} onLeave={handleLeaveRoom} />
+            </section>
+          ) : (
+            /* [B] 로비 뷰 (방 밖에 있을 때) */
             <section className="room-list-section">
               <RoomList />
             </section>
-            <aside className="side-panel-section">
-              <SidePanel user={user} />
-            </aside>
-          </>
-        )}
+          )}
+          <aside className="side-panel-section">
+            <SidePanel user={user} />
+          </aside>
+        </>
+
       </main>
     </div>
   );

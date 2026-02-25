@@ -2,7 +2,6 @@ import React from 'react';
 import './room-page.css';
 
 const RoomPage = ({ room, user, onLeave }) => {
-    console.log(room);
     return (
         <div className="room-page">
             <div className="room-header">

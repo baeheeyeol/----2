@@ -1,19 +1,19 @@
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* 화면 전체 높이 사용 */
+  height: 100vh; /* 화면 전체 높이 사용 */ 
   background-color: var(--bg-dark-depth-1);
 }
 
 .main-content {
-  display: flex; /* 좌우 배치를 위한 Flexbox */
+  display: flex; /* 좌우 배치를 위한 Flexbox */ 
   flex: 1; /* 헤더 제외 남은 공간 모두 차지 */ 
   overflow: hidden; /* 스크롤바 관리 */
 }
 
 /* 좌측 방 목록 (넓게) */
 .room-list-section {
-  flex: 3; /* 3의 비율 */
+  flex: 4.5; /* 3의 비율 */
   padding: 20px;
   border-right: 1px solid var(--border-color);
   overflow-y: auto; /* 내용 많으면 스크롤 */
