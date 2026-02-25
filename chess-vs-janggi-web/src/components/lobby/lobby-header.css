@@ -1,0 +1,85 @@
+.lobby-header {
+  height: 60px;
+  background-color: var(--bg-dark-depth-2); /* 짙은 네이비 */
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--point-gold); /* 포인트 컬러 */
+  margin-right: 15px;
+}
+
+.user-count {
+  font-size: 0.9rem;
+  color: var(--text-sub);
+}
+
+.highlight {
+  color: var(--text-main);
+  font-weight: bold;
+}
+
+/* 로그인 폼 스타일 */
+.login-form {
+  display: flex;
+  gap: 8px;
+}
+
+.login-form input {
+  background-color: var(--bg-dark-depth-3);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 6px 10px;
+  border-radius: 4px;
+  outline: none;
+  font-size: 0.9rem;
+  width: 120px;
+}
+
+.login-form input:focus {
+  border-color: var(--point-blue);
+}
+
+.btn-login {
+  background-color: var(--point-blue);
+  color: white;
+  border: none;
+  padding: 0 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-login:hover {
+  filter: brightness(1.1);
+}
+
+/* 로그인 후 프로필 스타일 */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.user-name {
+  font-weight: bold;
+  color: var(--point-green);
+}
+
+.btn-logout {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-sub);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}

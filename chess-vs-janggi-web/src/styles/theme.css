@@ -1,0 +1,17 @@
+:root {
+  /* 배경색 계열 */
+  --bg-dark-depth-1: #0f111a; /* 가장 바닥 배경 */
+  --bg-dark-depth-2: #1a1c23; /* 헤더, 카드 배경 */
+  --bg-dark-depth-3: #2c2f3a; /* 입력창, 버튼 호버 */
+
+  /* 포인트 컬러 */
+  --point-green: #48bb78;    /* 대기중 상태 */
+  --point-red: #f56565;      /* 게임중 상태 */
+  --point-blue: #4299e1;     /* 체스 진영 포인트 */
+  --point-gold: #ecc94b;     /* 장기 진영 포인트 */
+
+  /* 텍스트 컬러 */
+  --text-main: #ffffff;
+  --text-sub: #a0aec0;
+  --border-color: #333333;
+}

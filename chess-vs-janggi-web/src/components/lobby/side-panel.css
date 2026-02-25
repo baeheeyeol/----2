@@ -1,0 +1,123 @@
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 부모 높이(화면 전체) 상속 */
+  background-color: var(--bg-dark-depth-2);
+  border-left: 1px solid var(--border-color);
+  padding: 15px;
+  gap: 15px;
+}
+
+/* 공통 섹션 스타일 */
+.panel-section h3 {
+  font-size: 1rem;
+  color: var(--text-sub);
+  margin-bottom: 8px;
+}
+
+/* 1. 프로필 영역 */
+.profile-card {
+  background-color: var(--bg-dark-depth-3);
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+}
+
+.profile-stats p {
+  margin-bottom: 5px;
+  font-size: 0.95rem;
+}
+
+.btn-detail {
+  margin-top: 5px;
+  background: transparent;
+  border: 1px solid var(--text-sub);
+  color: var(--text-sub);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+/* 2. 액션 버튼 영역 */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-action {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: filter 0.2s;
+  color: #fff;
+}
+
+.create-room {
+  background-color: #2b6cb0; /* 짙은 파랑 */
+}
+
+.quick-start {
+  background-color: #b7791f; /* 짙은 골드 */
+}
+
+.btn-action:hover {
+  filter: brightness(1.2);
+}
+
+/* 3. 채팅 영역 (Flex Grow 중요) */
+.chat-container {
+  flex: 1; /* 남은 공간 모두 차지 */
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-dark-depth-3);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden; /* 내부 스크롤 제어 */
+}
+
+.chat-header {
+  padding: 10px;
+  background-color: rgba(0,0,0,0.2);
+  font-size: 0.9rem;
+  color: var(--text-sub);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chat-messages {
+  flex: 1; /* 채팅창 내부에서 메시지 영역이 늘어남 */
+  overflow-y: auto; /* 스크롤바 생성 */
+  padding: 10px;
+  font-size: 0.9rem;
+}
+
+.chat-line {
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+
+.chat-user {
+  color: var(--point-gold);
+  margin-right: 6px;
+  font-weight: bold;
+}
+
+.chat-input-form {
+  display: flex;
+  border-top: 1px solid var(--border-color);
+}
+
+.chat-input-form input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  color: white;
+  outline: none;
+}

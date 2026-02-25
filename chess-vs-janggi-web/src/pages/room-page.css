@@ -1,0 +1,52 @@
+.room-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 40px;
+  background-color: var(--bg-dark-depth-1);
+}
+
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 50px;
+}
+
+.player-vs-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 100px;
+  margin-bottom: 50px;
+}
+
+.player-box {
+  width: 200px;
+  height: 250px;
+  background: var(--bg-dark-depth-2);
+  border: 2px solid var(--border-color);
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.player-box.chess { border-color: var(--point-blue); }
+.player-box.janggi { border-color: var(--point-gold); }
+
+.player-box .icon { font-size: 5rem; margin-bottom: 20px; }
+.player-box .name { font-size: 1.2rem; font-weight: bold; }
+
+.btn-start {
+  padding: 15px 60px;
+  font-size: 1.5rem;
+  background: var(--point-green);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-start:disabled { background: #444; cursor: not-allowed; }

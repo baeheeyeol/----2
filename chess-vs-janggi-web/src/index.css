@@ -1,0 +1,25 @@
+/* src/index.css */
+@import "./styles/theme.css";
+
+/* 기본 여백 제거 및 다크 모드 배경 설정 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0f111a; /* 시안과 유사한 매우 어두운 남색 */
+  color: #ffffff;
+  font-family: 'Pretendard', -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+ul, li {
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}

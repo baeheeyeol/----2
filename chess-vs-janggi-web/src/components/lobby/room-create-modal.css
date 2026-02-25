@@ -1,0 +1,64 @@
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--bg-dark-depth-2);
+  padding: 25px;
+  border-radius: 12px;
+  width: 350px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.form-group {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: var(--text-sub);
+  margin-bottom: 5px;
+}
+
+.form-group input, .form-group select {
+  background: var(--bg-dark-depth-3);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.check-group {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-cancel {
+  flex: 1;
+  background: #4a5568;
+  color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;
+}
+
+.btn-create {
+  flex: 2;
+  background: var(--point-green);
+  color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;
+  font-weight: bold;
+}

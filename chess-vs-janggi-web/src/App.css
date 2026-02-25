@@ -1,0 +1,43 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* 화면 전체 높이 사용 */
+  background-color: var(--bg-dark-depth-1);
+}
+
+.main-content {
+  display: flex; /* 좌우 배치를 위한 Flexbox */
+  flex: 1; /* 헤더 제외 남은 공간 모두 차지 */ 
+  overflow: hidden; /* 스크롤바 관리 */
+}
+
+/* 좌측 방 목록 (넓게) */
+.room-list-section {
+  flex: 3; /* 3의 비율 */
+  padding: 20px;
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto; /* 내용 많으면 스크롤 */
+}
+/* src/App.css 수정 */
+.side-panel-section {
+  flex: 1;
+  min-width: 300px;
+  padding: 0; /* 패딩 제거 */
+  background-color: var(--bg-dark-depth-2);
+}
+
+/* 임시 플레이스홀더 스타일 */
+.placeholder-box {
+  margin-top: 10px;
+  padding: 40px;
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--text-sub);
+}
+
+h2 {
+  font-size: 1.1rem;
+  color: var(--text-main);
+  margin-bottom: 10px;
+}
