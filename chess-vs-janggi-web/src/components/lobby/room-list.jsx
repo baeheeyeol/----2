@@ -22,7 +22,7 @@ const RoomList = () => {
     }, []);
 
     const handleJoinRoom = (roomId) => {
-        socket.emit('join_room', { room_id: roomId });
+        socket.emit('join_room', { roomId });
     };
 
     return (

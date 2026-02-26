@@ -5,7 +5,7 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
     // 1. 폼 상태 관리: 모달은 오직 '입력값'만 관리합니다.
     const [roomData, setRoomData] = useState({
         roomTitle: '',
-        roomRule: 'auto',
+        roomRule: '자율선택',
         isPrivate: false,
         roomPassword: ''
     });
@@ -20,7 +20,7 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
         onCreate(roomData);
 
         // 초기화 (다음 번에 열릴 때를 대비)
-        setRoomData({ roomTitle: '', roomRule: 'auto', isPrivate: false, roomPassword: '' });
+        setRoomData({ roomTitle: '', roomRule: '자율선택', isPrivate: false, roomPassword: '' });
     };
 
     return (
@@ -47,9 +47,9 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
                             value={roomData.roomRule}
                             onChange={(e) => setRoomData({ ...roomData, roomRule: e.target.value })}
                         >
-                            <option value="auto">자율 선택</option>
-                            <option value="random">랜덤 배정</option>
-                            <option value="fixed">방장 선택</option>
+                            <option value="자율선택">자율 선택</option>
+                            <option value="랜덤배정">랜덤 배정</option>
+                            <option value="방장선택">방장 선택</option>
                         </select>
                     </div>
 
