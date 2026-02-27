@@ -1,21 +1,19 @@
 .side-panel {
   display: flex;
   flex-direction: column;
-  height: 100%; /* 부모 높이(화면 전체) 상속 */
+  height: 100%;
   background-color: var(--bg-dark-depth-2);
   border-left: 1px solid var(--border-color);
   padding: 15px;
   gap: 15px;
 }
 
-/* 공통 섹션 스타일 */
 .panel-section h3 {
-  font-size: 1rem;
+  font-size: 1.05rem;
   color: var(--text-sub);
   margin-bottom: 8px;
 }
 
-/* 1. 프로필 영역 */
 .profile-card {
   background-color: var(--bg-dark-depth-3);
   padding: 15px;
@@ -26,7 +24,8 @@
 
 .profile-stats p {
   margin-bottom: 5px;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  color: var(--text-main);
 }
 
 .btn-detail {
@@ -37,10 +36,9 @@
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
-/* 2. 액션 버튼 영역 */
 .action-buttons {
   display: flex;
   flex-direction: column;
@@ -52,11 +50,11 @@
   padding: 12px;
   border: none;
   border-radius: 6px;
-  font-weight: bold;
-  font-size: 1rem;
+  font-weight: 700;
+  font-size: 1.05rem;
   cursor: pointer;
   transition: filter 0.2s;
-  color: #fff;
+  color: #ffffff;
 }
 
 .create-room {
@@ -71,9 +69,20 @@
   filter: brightness(1.2);
 }
 
-/* 3. 채팅 영역 (Flex Grow 중요) */
+.btn-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: none;
+}
+
+.room-locked-hint {
+  font-size: 13px;
+  color: var(--text-sub);
+  text-align: center;
+}
+
 .chat-container {
-  flex: 1; /* 남은 공간 모두 차지 */
+  flex: 1;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-dark-depth-3);
@@ -84,109 +93,89 @@
 
 .chat-header {
   padding: 10px;
-  background-color: rgba(0,0,0,0.2);
-  font-size: 0.9rem;
+  background-color: var(--bg-dark-depth-2);
+  font-size: 1rem;
   color: var(--text-sub);
   border-bottom: 1px solid var(--border-color);
 }
 
-.chat-messages {
-  flex: 1; /* 채팅창 내부에서 메시지 영역이 늘어남 */
-  overflow-y: auto; /* 스크롤바 생성 */
-  padding: 10px;
-  font-size: 0.9rem;
-}
-
-.chat-user {
-  color: var(--point-gold);
-  margin-right: 6px;
-  font-weight: bold;
-}
-
-.chat-input-form input {
-  flex: 1;
-  background: transparent;
-  border: none;
-}
-
 .chat-tabs {
-    display: flex;
-    background-color: #2c2c2c;
-    border-bottom: 1px solid #444;
+  display: flex;
+  background-color: var(--bg-dark-depth-2);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .chat-tab {
-    flex: 1;
-    background: none;
-    border: none;
-    padding: 10px;
-    color: #888;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s;
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  color: var(--text-sub);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .chat-tab:hover:not(:disabled) {
-    background-color: #3a3a3a;
-    color: #ccc;
+  background-color: var(--bg-dark-depth-3);
+  color: var(--text-main);
 }
 
 .chat-tab.active {
-    color: #fff;
-    border-bottom: 3px solid #4caf50; /* Active Color (Green) */
-    background-color: #333;
+  color: var(--point-blue);
+  border-bottom: 3px solid var(--point-blue);
+  background-color: var(--bg-dark-depth-3);
 }
 
 .chat-messages {
-    flex: 1;
-    padding: 10px;
-    overflow-y: auto;
-    font-size: 14px;
-    color: #ddd;
-    /* 스크롤바 디자인 (Webkit) */
-    scrollbar-width: thin;
-    scrollbar-color: #555 #1e1e1e;
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  font-size: 15px;
+  color: var(--text-main);
+  scrollbar-width: thin;
+  scrollbar-color: #aab6c5 #e9eef5;
 }
 
 .chat-line {
-    margin-bottom: 6px;
-    word-break: break-all;
+  margin-bottom: 6px;
+  word-break: break-all;
 }
 
 .chat-user {
-    font-weight: bold;
-    margin-right: 6px;
-    color: #aaa;
+  font-weight: 700;
+  margin-right: 6px;
+  color: var(--point-blue);
 }
 
-/* 내 아이디일 경우 강조 (옵션) */
 .chat-user.my-user {
-    color: #4caf50;
+  color: var(--point-green);
 }
 
 .system-message {
-    text-align: center;
-    color: #666;
-    font-size: 12px;
-    margin-top: 10px;
+  text-align: center;
+  color: var(--text-sub);
+  font-size: 13px;
+  margin-top: 10px;
 }
 
 .chat-input-form {
-    border-top: 1px solid #444;
-    padding: 10px;
-    background-color: #252525;
+  border-top: 1px solid var(--border-color);
+  padding: 10px;
+  background-color: var(--bg-dark-depth-2);
 }
 
 .chat-input-form input {
-    width: 100%;
-    padding: 8px;
-    background-color: #333;
-    border: 1px solid #555;
-    border-radius: 4px;
-    color: #fff;
-    outline: none;
+  width: 100%;
+  padding: 9px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-main);
+  outline: none;
+  font-size: 14px;
 }
 
 .chat-input-form input:focus {
-    border-color: #4caf50;
+  border-color: var(--point-blue);
 }

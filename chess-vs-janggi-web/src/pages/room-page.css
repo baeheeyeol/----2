@@ -1,22 +1,35 @@
 /* --- 변수 정의 (로비 디자인 팔레트 참고) --- */
 :root {
-    --bg-dark: #121212; /* 전체 배경색 */
-    --card-bg: #1e1e24; /* 카드 배경색 */
-    --text-primary: #ffffff;
-    --text-secondary: #a0a0a0;
-    --accent-blue: #3b82f6; /* 체스색/Primary 버튼 */
-    --accent-gold: #eab308; /* 장기색 */
-    --accent-red: #ef4444; /* 나가기 버튼 등 경고색 */
-    --border-color: #33333d;
+    --bg-dark: #f4f7fb;
+    --card-bg: #ffffff;
+    --text-primary: #1f2937;
+    --text-secondary: #556274;
+    --accent-blue: #2b6cb0;
+    --accent-gold: #b7791f;
+    --accent-red: #c53030;
+    --border-color: #cfd8e3;
+}
+
+:root[data-theme='dark'] {
+    --bg-dark: #0f111a;
+    --card-bg: #1a1c23;
+    --text-primary: #f7fafc;
+    --text-secondary: #a0aec0;
+    --accent-blue: #63b3ed;
+    --accent-gold: #ecc94b;
+    --accent-red: #f56565;
+    --border-color: #3f4756;
 }
 
 .room-page-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100vh - 60px); /* 헤더 높이 제외 */
+    width: 100%;
+    height: 100%;
+    min-height: 0;
     background-color: var(--bg-dark);
-    padding: 20px;
+    padding: 0;
 }
 
 /* --- 메인 게임 셋업 카드 --- */
@@ -27,7 +40,7 @@
     padding: 24px;
     width: 100%;
     max-width: 800px; /* 너무 넓어지지 않도록 제한 */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 24px rgba(44, 82, 130, 0.12);
     display: flex;
     flex-direction: column;
     gap: 24px; /* 내부 섹션 간 간격 */
@@ -44,7 +57,7 @@
 
 .room-title {
     margin: 0;
-    font-size: 1.4rem;
+    font-size: 1.55rem;
     color: var(--text-primary);
 }
 
@@ -59,7 +72,7 @@
 
 .player-box {
     flex: 1;
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: #f8fafd;
     border: 2px solid transparent;
     border-radius: 8px;
     padding: 20px;
@@ -96,7 +109,7 @@
 .janggi .faction-icon, .janggi .faction-label { color: var(--accent-gold); }
 
 .player-name {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     font-weight: bold;
     color: var(--text-primary);
     margin-bottom: 5px;
@@ -107,7 +120,7 @@
 }
 
 .ready-status {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 999px;
@@ -122,15 +135,22 @@
 
 .ready-status.not-ready {
     color: var(--text-secondary);
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: #eef3f9;
     border: 1px solid var(--border-color);
 }
 
 .faction-label {
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 600;
     letter-spacing: 1px;
     margin-bottom: 10px;
+}
+
+.piece-color-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 700;
 }
 
 .vs-divider {
@@ -148,8 +168,11 @@
     border: 1px solid var(--border-color);
     padding: 4px 8px;
     border-radius: 4px;
-    font-size: 0.9rem;
+    font-size: 1rem;
     cursor: pointer;
+}
+.color-select {
+    margin-top: 8px;
 }
 .faction-select:focus {
     outline: none;
@@ -161,7 +184,7 @@
     display: flex;
     gap: 20px;
     padding: 16px;
-    background-color: rgba(0,0,0,0.2);
+    background-color: #f3f7fc;
     border-radius: 8px;
 }
 
@@ -174,15 +197,30 @@
     font-weight: 700;
 }
 
+.random-sync-banner {
+    border: 1px dashed var(--accent-blue);
+    color: var(--accent-blue);
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: center;
+    font-weight: 700;
+    background-color: rgba(59, 130, 246, 0.08);
+}
+
 .option-group {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    transition: transform 0.2s ease;
+}
+
+.option-group.option-changed {
+    animation: optionPulse 0.7s ease;
 }
 
 .option-group label {
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: var(--text-secondary);
     font-weight: 600;
 }
@@ -195,7 +233,7 @@
     border: 1px solid var(--border-color);
     border-radius: 6px;
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 1.05rem;
     cursor: pointer;
     transition: border-color 0.2s;
 }
@@ -225,7 +263,7 @@ button {
     padding: 10px 20px;
     border-radius: 6px;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 1.05rem;
     border: none;
     transition: background-color 0.2s, transform 0.1s;
 }
@@ -262,11 +300,47 @@ button:disabled {
     color: var(--text-primary);
 }
 .btn-secondary:hover:not(:disabled) {
-    background-color: rgba(255,255,255,0.1);
+    background-color: #edf2f7;
 }
 .btn-leave:hover {
     border-color: var(--accent-red);
     color: var(--accent-red);
+}
+
+.dice-icon {
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.dice-icon.rolling {
+    animation: diceRoll 0.8s ease-in-out;
+}
+
+@keyframes optionPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45);
+    }
+    40% {
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.12);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+}
+
+@keyframes diceRoll {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+    35% {
+        transform: rotate(180deg) scale(1.12);
+    }
+    70% {
+        transform: rotate(330deg) scale(0.95);
+    }
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
 }
 
 .guest-waiting-msg {

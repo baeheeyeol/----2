@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import LobbyHeader from './components/lobby/lobby-header';
 import RoomList from './components/lobby/room-list';
 import RoomPage from './pages/room-page';
+import GameView from './pages/game-view';
 import SidePanel from './components/lobby/side-panel';
 // [중요] 서버 파일이 아니라, src 폴더 내의 설정 파일을 가져옵니다.
 import socket from './socket';
 import './App.css';
 
 const STORAGE_KEY = 'cj-user-info';
+const THEME_STORAGE_KEY = 'cj-theme-mode';
 
 const getStoredUser = () => {
   try {
@@ -20,11 +22,17 @@ const getStoredUser = () => {
 };
 
 function App() {
-  // 1. 초기 상태 설정  
+  // 1. 초기 상태 설정 
   const [user, setUser] = useState(() => getStoredUser());
+  const [themeMode, setThemeMode] = useState(() => {
+    const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
+    return savedMode === 'dark' ? 'dark' : 'light';
+  });
 
   // 방정보
   const [currentRoom, setCurrentRoom] = useState(null);
+  const [isGameViewVisible, setIsGameViewVisible] = useState(false);
+  const isGameStarted = currentRoom?.status === 'PLAYING';
 
   // [방어적 코딩] 이벤트 리스너 내부에서 최신 State를 참조하기 위한 Ref
   // useEffect의 의존성 배열 문제로 인해 비동기 콜백 안에서 state가 옛날 값으로 남는 것을 방지합니다. 
@@ -36,6 +44,34 @@ function App() {
     userRef.current = user;
     roomRef.current = currentRoom;
   }, [user, currentRoom]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    let enterTimer;
+
+    if (!currentRoom) {
+      setIsGameViewVisible(false);
+      return;
+    }
+
+    if (currentRoom.status === 'PLAYING') {
+      enterTimer = setTimeout(() => {
+        setIsGameViewVisible(true);
+      }, 5000);
+    } else {
+      setIsGameViewVisible(false);
+    }
+
+    return () => {
+      if (enterTimer) {
+        clearTimeout(enterTimer);
+      }
+    };
+  }, [currentRoom?.id, currentRoom?.status]);
 
   // [핵심] 소켓 이벤트 리스너 등록 (앱이 켜질 때 한 번만 실행)
   useEffect(() => {
@@ -186,13 +222,26 @@ function App() {
 
   return (
     <div className="app-container">
-      <LobbyHeader user={user} onLogin={handleLogin} onLogout={handleLogout} />
+      <LobbyHeader
+        user={user}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+        themeMode={themeMode}
+        onToggleTheme={() => setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+      />
 
       <main className="main-content">
-
-        <>
-          {currentRoom ? (
-            /* [A] 게임 대기실 뷰 (방 안에 있을 때) */
+        {currentRoom ? (
+          isGameStarted && isGameViewVisible ? (
+            <section className="game-section">
+              <GameView
+                room={currentRoom}
+                user={user}
+                onLeave={handleLeaveRoom}
+                onUpdateRoomSettings={handleUpdateRoomSettings}
+              />
+            </section>
+          ) : (
             <section className="room-list-section">
               <RoomPage
                 room={currentRoom}
@@ -201,16 +250,16 @@ function App() {
                 onUpdateRoomSettings={handleUpdateRoomSettings}
               />
             </section>
-          ) : (
-            /* [B] 로비 뷰 (방 밖에 있을 때) */
-            <section className="room-list-section">
-              <RoomList />
-            </section>
-          )}
-          <aside className="side-panel-section">
-            <SidePanel user={user} />
-          </aside>
-        </>
+          )
+        ) : (
+          <section className="room-list-section">
+            <RoomList />
+          </section>
+        )}
+
+        <aside className="side-panel-section">
+          <SidePanel user={user} currentRoomId={currentRoom?.id} />
+        </aside>
 
       </main>
     </div>

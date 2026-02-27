@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react'; // ✅ 정답
 import './lobby-header.css';
 import socket from '../../socket'; // 경로 확인 필요
 
-const LobbyHeader = ({ user, onLogin, onLogout }) => {
+const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme }) => {
     // 로컬 상태: 입력 필드 관리
     const [inputId, setInputId] = useState('');
     const [inputPw, setInputPw] = useState('');
@@ -34,6 +34,9 @@ const LobbyHeader = ({ user, onLogin, onLogout }) => {
 
             {/* 2. 우측: 로그인 상태에 따른 분기 처리 */}
             <div className="header-right">
+                <button type="button" className="btn-theme-toggle" onClick={onToggleTheme}>
+                    {themeMode === 'dark' ? '☀️ 라이트' : '🌙 다크'}
+                </button>
                 {user ? (
                     // 로그인 성공 시
                     <div className="user-profile">

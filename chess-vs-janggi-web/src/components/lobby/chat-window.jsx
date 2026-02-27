@@ -14,6 +14,13 @@ const ChatWindow = ({ userName, currentRoomId }) => {
     const [inputText, setInputText] = useState('');
     const messagesEndRef = useRef(null);
 
+    const createSystemMessage = (text) => ({
+        id: `system_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        user: 'System',
+        text,
+        type: 'ROOM'
+    });
+
     // 방에서 나가면 자동으로 탭을 'GLOBAL'로 전환 및 방 메시지 초기화
     useEffect(() => {
         if (!currentRoomId) {
@@ -37,12 +44,28 @@ const ChatWindow = ({ userName, currentRoomId }) => {
             setRoomMessages((prev) => [...prev, newMessage]);
         };
 
+        const handlePlayerJoined = (payload) => {
+            const joinedUser = payload?.p2;
+            if (!joinedUser) return;
+            setRoomMessages((prev) => [...prev, createSystemMessage(`${joinedUser}님이 입장했습니다.`)]);
+        };
+
+        const handlePlayerLeft = (payload) => {
+            const leftUser = payload?.user;
+            const message = leftUser ? `${leftUser}님이 퇴장했습니다.` : '상대가 퇴장했습니다.';
+            setRoomMessages((prev) => [...prev, createSystemMessage(message)]);
+        };
+
         socket.on('receive_message', handleGlobalMessage);
         socket.on('receive_room_message', handleRoomMessage);
+        socket.on('player_joined', handlePlayerJoined);
+        socket.on('player_left', handlePlayerLeft);
 
         return () => {
             socket.off('receive_message', handleGlobalMessage);
             socket.off('receive_room_message', handleRoomMessage);
+            socket.off('player_joined', handlePlayerJoined);
+            socket.off('player_left', handlePlayerLeft);
         };
     }, []);
 

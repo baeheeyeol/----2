@@ -5,7 +5,7 @@ import { useState } from 'react';
 import socket from '../../socket';
 import './side-panel.css';
 
-const SidePanel = ({ user }) => {
+const SidePanel = ({ user, currentRoomId }) => {
     // 방만들기 버튼 클릭 핸들러
     // 클릭시 방만들기 모달창 띄우기
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +23,9 @@ const SidePanel = ({ user }) => {
         });
         setIsModalOpen(false); // 생성 후 모달 닫기
     };
+
+    const isInRoom = Boolean(currentRoomId);
+
     return (
         <aside className="side-panel">
             {/* 방 만들기 모달 */}
@@ -51,16 +54,17 @@ const SidePanel = ({ user }) => {
 
             {/* 2. 액션 버튼 영역 */}
             <div className="panel-section action-buttons">
-                <button className="btn-action create-room" onClick={handleCreateRoom}>
+                <button className="btn-action create-room" onClick={handleCreateRoom} disabled={isInRoom}>
                     📺 방 만들기
                 </button>
-                <button className="btn-action quick-start">
+                <button className="btn-action quick-start" disabled={isInRoom}>
                     🚀 빠른 시작
                 </button>
+                {isInRoom && <div className="room-locked-hint">방 입장 중에는 로비 액션을 사용할 수 없습니다.</div>}
             </div>
 
             {/* 3. 채팅 영역 (남은 공간 채움) */}
-            <ChatWindow userName={user?.id} />
+            <ChatWindow userName={user?.id} currentRoomId={currentRoomId} />
         </aside>
     );
 };

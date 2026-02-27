@@ -1,0 +1,26 @@
+.game-result-banner {
+  border: 1px solid var(--point-green);
+  background: rgba(72, 187, 120, 0.14);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-title {
+  color: var(--text-main);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.result-winner {
+  color: var(--point-green);
+  font-weight: 700;
+}
+
+.result-loser,
+.result-reason {
+  color: var(--text-sub);
+  font-size: 12px;
+}

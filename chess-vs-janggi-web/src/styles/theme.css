@@ -1,17 +1,32 @@
 :root {
-  /* 배경색 계열 */
-  --bg-dark-depth-1: #0f111a; /* 가장 바닥 배경 */
-  --bg-dark-depth-2: #1a1c23; /* 헤더, 카드 배경 */
-  --bg-dark-depth-3: #2c2f3a; /* 입력창, 버튼 호버 */
+  /* 배경색 계열 (라이트 테마) */
+  --bg-dark-depth-1: #f4f7fb;
+  --bg-dark-depth-2: #ffffff;
+  --bg-dark-depth-3: #eef3f9;
 
   /* 포인트 컬러 */
-  --point-green: #48bb78;    /* 대기중 상태 */
-  --point-red: #f56565;      /* 게임중 상태 */
-  --point-blue: #4299e1;     /* 체스 진영 포인트 */
-  --point-gold: #ecc94b;     /* 장기 진영 포인트 */
+  --point-green: #2f855a;
+  --point-red: #c53030;
+  --point-blue: #2b6cb0;
+  --point-gold: #b7791f;
 
   /* 텍스트 컬러 */
-  --text-main: #ffffff;
+  --text-main: #1a202c;
+  --text-sub: #4a5568;
+  --border-color: #cfd8e3;
+}
+
+:root[data-theme='dark'] {
+  --bg-dark-depth-1: #0f111a;
+  --bg-dark-depth-2: #1a1c23;
+  --bg-dark-depth-3: #2c2f3a;
+
+  --point-green: #48bb78;
+  --point-red: #f56565;
+  --point-blue: #63b3ed;
+  --point-gold: #ecc94b;
+
+  --text-main: #f7fafc;
   --text-sub: #a0aec0;
-  --border-color: #333333;
+  --border-color: #3f4756;
 }

@@ -1,0 +1,53 @@
+.game-view-container {
+  height: 100%;
+  background: var(--bg-dark-depth-2);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.game-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.game-view-title {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.game-view-leave {
+  padding: 8px 14px;
+  background: var(--bg-dark-depth-3);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.game-view-leave:hover {
+  border-color: var(--point-blue);
+}
+
+.game-view-body {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.game-view-room {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.game-view-players {
+  color: var(--text-sub);
+}

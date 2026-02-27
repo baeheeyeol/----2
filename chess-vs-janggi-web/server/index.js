@@ -39,6 +39,27 @@ const normalizeRoomRule = (rule) => {
   return ruleMap[rule] || '자율선택';
 };
 
+const createDefaultGameSetup = () => ({
+  started: false,
+  firstTurn: null,
+  turnSide: null,
+  winner: null,
+  winnerReason: null,
+  battleBoard: null,
+  lastMove: null,
+  capturedBySide: { top: [], bottom: [] },
+  p1Lives: 3,
+  p2Lives: 3,
+  p1Ready: false,
+  p2Ready: false,
+  p1Mode: 'formation',
+  p2Mode: 'formation',
+  p1Formation: null,
+  p2Formation: null,
+  p1CustomLayout: [],
+  p2CustomLayout: []
+});
+
 /**
  * [Helper] 유저가 방에서 나갈 때의 공통 처리 로직
  * - 방장(P1)이 나가면 방이 폭파됨.
@@ -64,18 +85,18 @@ const handleUserExitRoom = (socketId) => {
     // 2. 참가자(P2)가 나가는 경우 -> 방 유지, P2 정보 초기화
     if (room.p2_socketId === socketId) {
       console.log(`[Player Left] P2 left room: ${room.id}`);
+      const leftUser = room.p2;
       room.p2 = null;
       room.p2_socketId = null;
       room.status = 'WAITING'; // 다시 대기 상태로 변경
       room.p2Faction = 'janggi';
+      room.p2Color = 'black';
       room.p1Ready = false;
       room.p2Ready = false;
+      room.gameSetup = createDefaultGameSetup();
       
-      // 해당 방에 있는 사람들에게 알림 (선택 사항)
-      io.to(room.id).emit('receive_room_message', {
-        sender: 'System',
-        message: '상대방이 나갔습니다.'
-      });
+      // 해당 방에 있는 사람들에게 알림
+      io.to(room.id).emit('player_left', { user: leftUser });
       io.to(room.id).emit('room_update', room);
       
       isRoomListChanged = true;
@@ -194,8 +215,13 @@ io.on('connection', (socket) => {
       roomMap: roomData.roomMap || '체스판',
       p1Faction: roomData.p1Faction || 'chess',
       p2Faction: roomData.p2Faction || 'janggi',
+      p1Color: roomData.p1Color || 'white',
+      p2Color: roomData.p2Color || 'black',
+      turnSeconds: Number.isFinite(Number(roomData.turnSeconds)) ? Math.min(600, Math.max(1, Number(roomData.turnSeconds))) : 60,
+      randomTick: 0,
       p1Ready: false,
-      p2Ready: false
+      p2Ready: false,
+      gameSetup: createDefaultGameSetup()
     };
 
     rooms.push(newRoom);
@@ -226,6 +252,7 @@ io.on('connection', (socket) => {
       room.status = 'WAITING';
       room.p1Ready = false;
       room.p2Ready = false;
+      room.gameSetup = createDefaultGameSetup();
       
       socket.join(room.id);
       
@@ -263,11 +290,19 @@ io.on('connection', (socket) => {
     const allowedRules = new Set(['자율선택', '랜덤배정', '방장선택']);
     const allowedMaps = new Set(['체스판', '장기판', '바둑판']);
     const allowedFactions = new Set(['chess', 'janggi', 'omok']);
+    const allowedColors = new Set(['white', 'black', 'red', 'blue', 'green', 'gold', 'purple']);
+    const setupModeSet = new Set(['formation', 'custom']);
 
     if (typeof updates !== 'object' || !updates) {
       socket.emit('update_room_settings_error', { message: '잘못된 설정 요청입니다.' });
       return;
     }
+
+    const isRandomShuffleRequest =
+      !!updates.p1Faction &&
+      !!updates.p2Faction &&
+      allowedFactions.has(updates.p1Faction) &&
+      allowedFactions.has(updates.p2Faction);
 
     if (updates.roomRule) {
       const normalizedRule = normalizeRoomRule(updates.roomRule);
@@ -287,19 +322,115 @@ io.on('connection', (socket) => {
     if (updates.p1Faction && allowedFactions.has(updates.p1Faction)) {
       room.p1Faction = updates.p1Faction;
       room.p1Ready = false;
-      room.p2Ready = false;
+      room.gameSetup = createDefaultGameSetup();
     }
 
     if (updates.p2Faction && allowedFactions.has(updates.p2Faction)) {
       room.p2Faction = updates.p2Faction;
-      room.p1Ready = false;
       room.p2Ready = false;
+      room.gameSetup = createDefaultGameSetup();
     }
+
+    if (updates.p1Color && allowedColors.has(updates.p1Color)) {
+      room.p1Color = updates.p1Color;
+    }
+
+    if (updates.p2Color && allowedColors.has(updates.p2Color)) {
+      room.p2Color = updates.p2Color;
+    }
+
+    if (updates.turnSeconds !== undefined) {
+      const numericTurnSeconds = Number(updates.turnSeconds);
+      if (Number.isFinite(numericTurnSeconds)) {
+        room.turnSeconds = Math.min(600, Math.max(1, Math.floor(numericTurnSeconds)));
+      }
+    }
+
     if (updates.p2Ready !== undefined) {
       room.p2Ready = !!updates.p2Ready;
     }
     if (updates.p1Ready !== undefined) {
       room.p1Ready = !!updates.p1Ready;
+    }
+
+    if (isRandomShuffleRequest) {
+      room.randomTick = (room.randomTick || 0) + 1;
+    }
+
+    if (updates.gameSetup && typeof updates.gameSetup === 'object') {
+      const nextSetup = { ...(room.gameSetup || createDefaultGameSetup()) };
+
+      if (typeof updates.gameSetup.started === 'boolean') {
+        nextSetup.started = updates.gameSetup.started;
+      }
+      if (updates.gameSetup.firstTurn === 'top' || updates.gameSetup.firstTurn === 'bottom' || updates.gameSetup.firstTurn === null) {
+        nextSetup.firstTurn = updates.gameSetup.firstTurn;
+      }
+      if (updates.gameSetup.turnSide === 'top' || updates.gameSetup.turnSide === 'bottom' || updates.gameSetup.turnSide === null) {
+        nextSetup.turnSide = updates.gameSetup.turnSide;
+      }
+      if (updates.gameSetup.winner === 'top' || updates.gameSetup.winner === 'bottom' || updates.gameSetup.winner === null) {
+        nextSetup.winner = updates.gameSetup.winner;
+      }
+      if (updates.gameSetup.winnerReason === 'capture' || updates.gameSetup.winnerReason === 'checkmate' || updates.gameSetup.winnerReason === 'timeout' || updates.gameSetup.winnerReason === 'connect5' || updates.gameSetup.winnerReason === null) {
+        nextSetup.winnerReason = updates.gameSetup.winnerReason;
+      }
+      if (Array.isArray(updates.gameSetup.battleBoard)) {
+        const rowCount = updates.gameSetup.battleBoard.length;
+        const firstRow = rowCount > 0 && Array.isArray(updates.gameSetup.battleBoard[0]) ? updates.gameSetup.battleBoard[0] : null;
+        const colCount = firstRow ? firstRow.length : 0;
+        const isUniform = rowCount > 0 && updates.gameSetup.battleBoard.every((row) => Array.isArray(row) && row.length === colCount);
+        const isAllowedSize = isUniform && ((rowCount === 8 && colCount === 8) || (rowCount === 15 && colCount === 15));
+        if (isAllowedSize) {
+          nextSetup.battleBoard = updates.gameSetup.battleBoard.map((row) => row.slice());
+        }
+      }
+      if (updates.gameSetup.lastMove === null || typeof updates.gameSetup.lastMove === 'object') {
+        nextSetup.lastMove = updates.gameSetup.lastMove;
+      }
+      if (updates.gameSetup.capturedBySide && typeof updates.gameSetup.capturedBySide === 'object') {
+        const top = Array.isArray(updates.gameSetup.capturedBySide.top) ? updates.gameSetup.capturedBySide.top : [];
+        const bottom = Array.isArray(updates.gameSetup.capturedBySide.bottom) ? updates.gameSetup.capturedBySide.bottom : [];
+        nextSetup.capturedBySide = { top, bottom };
+      }
+      if (typeof updates.gameSetup.p1Ready === 'boolean') {
+        nextSetup.p1Ready = updates.gameSetup.p1Ready;
+      }
+      if (typeof updates.gameSetup.p2Ready === 'boolean') {
+        nextSetup.p2Ready = updates.gameSetup.p2Ready;
+      }
+      if (updates.gameSetup.p1Lives !== undefined) {
+        const p1Lives = Number(updates.gameSetup.p1Lives);
+        if (Number.isFinite(p1Lives)) {
+          nextSetup.p1Lives = Math.min(3, Math.max(0, Math.floor(p1Lives)));
+        }
+      }
+      if (updates.gameSetup.p2Lives !== undefined) {
+        const p2Lives = Number(updates.gameSetup.p2Lives);
+        if (Number.isFinite(p2Lives)) {
+          nextSetup.p2Lives = Math.min(3, Math.max(0, Math.floor(p2Lives)));
+        }
+      }
+      if (setupModeSet.has(updates.gameSetup.p1Mode)) {
+        nextSetup.p1Mode = updates.gameSetup.p1Mode;
+      }
+      if (setupModeSet.has(updates.gameSetup.p2Mode)) {
+        nextSetup.p2Mode = updates.gameSetup.p2Mode;
+      }
+      if (typeof updates.gameSetup.p1Formation === 'string' || updates.gameSetup.p1Formation === null) {
+        nextSetup.p1Formation = updates.gameSetup.p1Formation;
+      }
+      if (typeof updates.gameSetup.p2Formation === 'string' || updates.gameSetup.p2Formation === null) {
+        nextSetup.p2Formation = updates.gameSetup.p2Formation;
+      }
+      if (Array.isArray(updates.gameSetup.p1CustomLayout)) {
+        nextSetup.p1CustomLayout = updates.gameSetup.p1CustomLayout.slice(0, 32);
+      }
+      if (Array.isArray(updates.gameSetup.p2CustomLayout)) {
+        nextSetup.p2CustomLayout = updates.gameSetup.p2CustomLayout.slice(0, 32);
+      }
+
+      room.gameSetup = nextSetup;
     }
 
     const canStartGame = !!room.p1 && !!room.p2 && !!room.p1Ready && !!room.p2Ready;
