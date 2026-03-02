@@ -1,7 +1,7 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require("socket.io");
-const cors = require('cors');
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
 
 const app = express();
 app.use(cors());
@@ -21,7 +21,9 @@ const io = new Server(server, {
 // --- [In-Memory Database] ---
 let connectedUsers = {}; // { socketId: { id, winRate, rank } }
 let userToSocketId = {}; // { userId: socketId }
+let userRecords = {}; // { userId: { wins, losses, games } }
 let rooms = []; 
+let roomPasswords = {}; // { roomId: password }
 // Room 구조: { id, title, p1, p1_socketId, p2, p2_socketId, status }
 
 const normalizeRoomRule = (rule) => {
@@ -54,11 +56,100 @@ const createDefaultGameSetup = () => ({
   p2Ready: false,
   p1Mode: 'formation',
   p2Mode: 'formation',
+  p1RecommendedSide: 'left',
+  p2RecommendedSide: 'left',
   p1Formation: null,
   p2Formation: null,
   p1CustomLayout: [],
   p2CustomLayout: []
 });
+
+const normalizeOmokStoneTarget = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 8;
+  return Math.min(12, Math.max(6, Math.floor(parsed)));
+};
+
+const getOrCreateUserRecord = (userId) => {
+  if (!userRecords[userId]) {
+    userRecords[userId] = { wins: 0, losses: 0, games: 0 };
+  }
+  return userRecords[userId];
+};
+
+const getWinRatePercent = (record) => {
+  if (!record || record.games <= 0) return 0;
+  return Math.round((record.wins / record.games) * 100);
+};
+
+const getRankingList = () => {
+  return Object.entries(userRecords)
+    .map(([id, record]) => ({ id, ...record }))
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (a.losses !== b.losses) return a.losses - b.losses;
+      if (b.games !== a.games) return b.games - a.games;
+      return a.id.localeCompare(b.id);
+    });
+};
+
+const buildUserProfile = (userId) => {
+  const record = getOrCreateUserRecord(userId);
+  const ranking = getRankingList();
+  const rankIndex = ranking.findIndex((entry) => entry.id === userId);
+
+  return {
+    id: userId,
+    wins: record.wins,
+    losses: record.losses,
+    games: record.games,
+    winRate: getWinRatePercent(record),
+    rank: rankIndex >= 0 ? rankIndex + 1 : ranking.length,
+  };
+};
+
+const syncConnectedUserProfile = (userId) => {
+  const socketId = userToSocketId[userId];
+  if (!socketId) return;
+  if (!io.sockets.sockets.has(socketId)) return;
+
+  const profile = buildUserProfile(userId);
+  connectedUsers[socketId] = profile;
+  io.to(socketId).emit('user_profile_updated', profile);
+};
+
+const resolvePlayerSides = (room) => {
+  const p1Faction = room?.p1Faction;
+  const p2Faction = room?.p2Faction;
+  const p1Side = p1Faction === 'chess' && p2Faction !== 'chess'
+    ? 'bottom'
+    : p2Faction === 'chess' && p1Faction !== 'chess'
+      ? 'top'
+      : 'bottom';
+  const p2Side = p1Side === 'bottom' ? 'top' : 'bottom';
+  return { p1Side, p2Side };
+};
+
+const applyMatchResult = (room, winnerSide) => {
+  if (!room?.p1 || !room?.p2) return;
+  if (winnerSide !== 'top' && winnerSide !== 'bottom') return;
+
+  const { p1Side, p2Side } = resolvePlayerSides(room);
+  const winnerId = winnerSide === p1Side ? room.p1 : winnerSide === p2Side ? room.p2 : null;
+  const loserId = winnerId === room.p1 ? room.p2 : room.p1;
+  if (!winnerId || !loserId) return;
+
+  const winnerRecord = getOrCreateUserRecord(winnerId);
+  winnerRecord.wins += 1;
+  winnerRecord.games += 1;
+
+  const loserRecord = getOrCreateUserRecord(loserId);
+  loserRecord.losses += 1;
+  loserRecord.games += 1;
+
+  syncConnectedUserProfile(winnerId);
+  syncConnectedUserProfile(loserId);
+};
 
 /**
  * [Helper] 유저가 방에서 나갈 때의 공통 처리 로직
@@ -70,20 +161,52 @@ const handleUserExitRoom = (socketId) => {
 
   // filter를 사용하여 방 목록을 갱신 (방장이 나간 방은 제외)
   rooms = rooms.filter(room => {
+    const isInGame = room?.status === 'PLAYING' && room?.gameSetup?.started;
+    const hasNoWinnerYet = !room?.gameSetup?.winner;
+
     // 1. 방장(P1)이 나가는 경우 -> 방 삭제
     if (room.p1_socketId === socketId) {
+      if (isInGame && hasNoWinnerYet && room.p2) {
+        const { p1Side } = resolvePlayerSides(room);
+        const winnerSide = p1Side === 'top' ? 'bottom' : 'top';
+        applyMatchResult(room, winnerSide);
+
+        const winnerId = room.p2;
+        const loserId = room.p1;
+        const winnerSocketId = room.p2_socketId;
+        if (winnerSocketId && io.sockets.sockets.has(winnerSocketId)) {
+          io.to(winnerSocketId).emit('forfeit_result', { winnerId, loserId });
+        }
+      }
+
       console.log(`[Room Deleted] Creator left: ${room.id}`);
       io.to(room.id).emit('room_closed', {
         roomId: room.id,
         message: '방장이 방을 떠나 로비로 이동합니다.'
       });
       io.in(room.id).socketsLeave(room.id);
+      delete roomPasswords[room.id];
       isRoomListChanged = true;
       return false; // 목록에서 제외
     }
 
     // 2. 참가자(P2)가 나가는 경우 -> 방 유지, P2 정보 초기화
     if (room.p2_socketId === socketId) {
+      if (isInGame && hasNoWinnerYet && room.p1) {
+        const { p2Side } = resolvePlayerSides(room);
+        const winnerSide = p2Side === 'top' ? 'bottom' : 'top';
+        applyMatchResult(room, winnerSide);
+
+        const winnerId = room.p1;
+        const loserId = room.p2;
+        if (room.p1_socketId && io.sockets.sockets.has(room.p1_socketId)) {
+          io.to(room.p1_socketId).emit('forfeit_result', { winnerId, loserId });
+        }
+        if (room.p2_socketId && io.sockets.sockets.has(room.p2_socketId)) {
+          io.to(room.p2_socketId).emit('forfeit_result', { winnerId, loserId });
+        }
+      }
+
       console.log(`[Player Left] P2 left room: ${room.id}`);
       const leftUser = room.p2;
       room.p2 = null;
@@ -138,11 +261,7 @@ io.on('connection', (socket) => {
     }
 
     // 사용자 정보 생성 및 저장
-    const userInfo = {
-      id: normalizedUserId,
-      winRate: Math.floor(Math.random() * 100),
-      rank: Math.floor(Math.random() * 1000) + 1
-    };
+    const userInfo = buildUserProfile(normalizedUserId);
 
     connectedUsers[socket.id] = userInfo;
     userToSocketId[normalizedUserId] = socket.id;
@@ -217,12 +336,18 @@ io.on('connection', (socket) => {
       p2Faction: roomData.p2Faction || 'janggi',
       p1Color: roomData.p1Color || 'white',
       p2Color: roomData.p2Color || 'black',
+      omokStoneTarget: normalizeOmokStoneTarget(roomData.omokStoneTarget),
       turnSeconds: Number.isFinite(Number(roomData.turnSeconds)) ? Math.min(600, Math.max(1, Number(roomData.turnSeconds))) : 60,
       randomTick: 0,
       p1Ready: false,
       p2Ready: false,
+      isPrivate: !!roomData.isPrivate,
       gameSetup: createDefaultGameSetup()
     };
+
+    if (newRoom.isPrivate) {
+      roomPasswords[newRoom.id] = typeof roomData.roomPassword === 'string' ? roomData.roomPassword : '';
+    }
 
     rooms.push(newRoom);
     socket.join(newRoom.id);
@@ -232,7 +357,7 @@ io.on('connection', (socket) => {
   });
 
   // 6. 방 입장
-  socket.on('join_room', ({ roomId }) => { // 변수명 roomId로 통일
+  socket.on('join_room', ({ roomId, roomPassword }) => { // 변수명 roomId로 통일
     const currentUser = connectedUsers[socket.id];
     if (!currentUser) {
       socket.emit('join_room_error', { message: '로그인이 필요합니다.' });
@@ -244,6 +369,15 @@ io.on('connection', (socket) => {
     if (!room) {
       socket.emit('join_room_error', { message: '존재하지 않는 방입니다.' });
       return;
+    }
+
+    if (room.isPrivate) {
+      const expected = roomPasswords[room.id] || '';
+      const provided = typeof roomPassword === 'string' ? roomPassword : '';
+      if (!expected || expected !== provided) {
+        socket.emit('join_room_error', { message: '비밀번호가 올바르지 않습니다.' });
+        return;
+      }
     }
 
     if (room.status === 'WAITING' && !room.p2) {
@@ -291,7 +425,7 @@ io.on('connection', (socket) => {
     const allowedMaps = new Set(['체스판', '장기판', '바둑판']);
     const allowedFactions = new Set(['chess', 'janggi', 'omok']);
     const allowedColors = new Set(['white', 'black', 'red', 'blue', 'green', 'gold', 'purple']);
-    const setupModeSet = new Set(['formation', 'custom']);
+    const setupModeSet = new Set(['formation', 'recommended', 'custom']);
 
     if (typeof updates !== 'object' || !updates) {
       socket.emit('update_room_settings_error', { message: '잘못된 설정 요청입니다.' });
@@ -303,6 +437,8 @@ io.on('connection', (socket) => {
       !!updates.p2Faction &&
       allowedFactions.has(updates.p1Faction) &&
       allowedFactions.has(updates.p2Faction);
+
+    const isHostSocket = room.p1_socketId === socket.id;
 
     if (updates.roomRule) {
       const normalizedRule = normalizeRoomRule(updates.roomRule);
@@ -339,6 +475,26 @@ io.on('connection', (socket) => {
       room.p2Color = updates.p2Color;
     }
 
+    if (updates.omokStoneTarget !== undefined) {
+      const roomRule = normalizeRoomRule(room.roomRule);
+      const nextP1Faction = updates.p1Faction && allowedFactions.has(updates.p1Faction) ? updates.p1Faction : room.p1Faction;
+      const nextP2Faction = updates.p2Faction && allowedFactions.has(updates.p2Faction) ? updates.p2Faction : room.p2Faction;
+      const isP1Omok = nextP1Faction === 'omok';
+      const isP2Omok = nextP2Faction === 'omok';
+      const isRequesterP1 = room.p1_socketId === socket.id;
+      const isRequesterP2 = room.p2_socketId === socket.id;
+
+      const canEditOmokTarget =
+        (roomRule === '방장선택' && isHostSocket) ||
+        (roomRule === '자율선택' && ((isRequesterP1 && isP1Omok) || (isRequesterP2 && isP2Omok)));
+
+      if (canEditOmokTarget) {
+        room.omokStoneTarget = normalizeOmokStoneTarget(updates.omokStoneTarget);
+        room.p1Ready = false;
+        room.p2Ready = false;
+      }
+    }
+
     if (updates.turnSeconds !== undefined) {
       const numericTurnSeconds = Number(updates.turnSeconds);
       if (Number.isFinite(numericTurnSeconds)) {
@@ -358,6 +514,7 @@ io.on('connection', (socket) => {
     }
 
     if (updates.gameSetup && typeof updates.gameSetup === 'object') {
+      const previousWinner = room.gameSetup?.winner ?? null;
       const nextSetup = { ...(room.gameSetup || createDefaultGameSetup()) };
 
       if (typeof updates.gameSetup.started === 'boolean') {
@@ -380,7 +537,7 @@ io.on('connection', (socket) => {
         const firstRow = rowCount > 0 && Array.isArray(updates.gameSetup.battleBoard[0]) ? updates.gameSetup.battleBoard[0] : null;
         const colCount = firstRow ? firstRow.length : 0;
         const isUniform = rowCount > 0 && updates.gameSetup.battleBoard.every((row) => Array.isArray(row) && row.length === colCount);
-        const isAllowedSize = isUniform && ((rowCount === 8 && colCount === 8) || (rowCount === 15 && colCount === 15));
+        const isAllowedSize = isUniform && ((rowCount === 8 && colCount === 8) || (rowCount === 10 && colCount === 9) || (rowCount === 15 && colCount === 15));
         if (isAllowedSize) {
           nextSetup.battleBoard = updates.gameSetup.battleBoard.map((row) => row.slice());
         }
@@ -417,6 +574,12 @@ io.on('connection', (socket) => {
       if (setupModeSet.has(updates.gameSetup.p2Mode)) {
         nextSetup.p2Mode = updates.gameSetup.p2Mode;
       }
+      if (updates.gameSetup.p1RecommendedSide === 'left' || updates.gameSetup.p1RecommendedSide === 'right') {
+        nextSetup.p1RecommendedSide = updates.gameSetup.p1RecommendedSide;
+      }
+      if (updates.gameSetup.p2RecommendedSide === 'left' || updates.gameSetup.p2RecommendedSide === 'right') {
+        nextSetup.p2RecommendedSide = updates.gameSetup.p2RecommendedSide;
+      }
       if (typeof updates.gameSetup.p1Formation === 'string' || updates.gameSetup.p1Formation === null) {
         nextSetup.p1Formation = updates.gameSetup.p1Formation;
       }
@@ -428,6 +591,10 @@ io.on('connection', (socket) => {
       }
       if (Array.isArray(updates.gameSetup.p2CustomLayout)) {
         nextSetup.p2CustomLayout = updates.gameSetup.p2CustomLayout.slice(0, 32);
+      }
+
+      if (previousWinner === null && (nextSetup.winner === 'top' || nextSetup.winner === 'bottom')) {
+        applyMatchResult(room, nextSetup.winner);
       }
 
       room.gameSetup = nextSetup;

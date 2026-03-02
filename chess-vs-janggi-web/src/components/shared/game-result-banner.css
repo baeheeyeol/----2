@@ -1,26 +1,101 @@
+.game-result-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  padding: 16px;
+}
+
 .game-result-banner {
-  border: 1px solid var(--point-green);
-  background: rgba(72, 187, 120, 0.14);
-  border-radius: 10px;
-  padding: 12px;
+  width: min(520px, 92vw);
+  border: 1px solid var(--border-color);
+  background: var(--bg-dark-depth-2);
+  border-radius: 14px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
 }
 
 .result-title {
   color: var(--text-main);
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 900;
+  text-align: center;
 }
 
-.result-winner {
-  color: var(--point-green);
+.result-players {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.result-player-card {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.result-player-card.winner {
+  border-color: var(--point-green);
+  background: rgba(72, 187, 120, 0.16);
+}
+
+.result-player-card.loser {
+  border-color: var(--point-red);
+  background: rgba(245, 101, 101, 0.12);
+}
+
+.result-player-id {
+  color: var(--text-main);
+  font-size: 16px;
+  font-weight: 800;
+  word-break: break-all;
+}
+
+.result-player-state {
+  color: var(--text-sub);
+  font-size: 14px;
   font-weight: 700;
 }
 
-.result-loser,
-.result-reason {
-  color: var(--text-sub);
-  font-size: 12px;
+.result-player-state.winner-state {
+  color: var(--point-green);
+  font-size: 20px;
+  font-weight: 900;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.result-player-state.loser-state {
+  color: var(--point-red);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.result-exit-btn {
+  border: 1px solid var(--point-blue);
+  background: rgba(66, 153, 225, 0.14);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.result-exit-btn:hover {
+  background: rgba(66, 153, 225, 0.22);
+}
+
+:root[data-theme='dark'] .game-result-overlay {
+  background: rgba(2, 6, 23, 0.56);
 }

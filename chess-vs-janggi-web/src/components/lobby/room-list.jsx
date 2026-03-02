@@ -21,8 +21,8 @@ const RoomList = () => {
         };
     }, []);
 
-    const handleJoinRoom = (roomId) => {
-        socket.emit('join_room', { roomId });
+    const handleJoinRoom = (roomId, roomPassword = '') => {
+        socket.emit('join_room', { roomId, roomPassword });
     };
 
     return (

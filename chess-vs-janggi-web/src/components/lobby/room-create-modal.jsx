@@ -15,6 +15,7 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!roomData.roomTitle.trim()) return alert('방 제목을 입력해주세요.');
+        if (roomData.isPrivate && !roomData.roomPassword.trim()) return alert('비공개 방 비밀번호를 입력해주세요.');
 
         // 부모가 전달해준 onCreate 함수에 현재 입력값만 넘깁니다.
         onCreate(roomData);
@@ -73,6 +74,7 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
                                 placeholder="비밀번호"
                                 value={roomData.roomPassword}
                                 onChange={(e) => setRoomData({ ...roomData, roomPassword: e.target.value })}
+                                maxLength={30}
                             />
                         </div>
                     )}

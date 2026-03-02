@@ -30,6 +30,8 @@ const PIECE_COLORS = [
     { code: 'purple', label: 'PURPLE' },
 ];
 
+const OMOK_STONE_TARGET_OPTIONS = [6, 7, 8, 9, 10, 11, 12];
+
 const normalizeRule = (rule) => {
     const ruleMap = {
         auto: GAME_RULES.FREE,
@@ -75,6 +77,9 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
     const p2Faction = getFactionByCode(room.p2Faction, FACTIONS.JANGGI);
     const p1Color = room.p1Color || 'white';
     const p2Color = room.p2Color || 'black';
+    const omokStoneTarget = Number.isFinite(Number(room.omokStoneTarget))
+        ? Math.min(12, Math.max(6, Math.floor(Number(room.omokStoneTarget))))
+        : 8;
     const roomTurnSeconds = Number.isFinite(Number(room.turnSeconds)) ? Number(room.turnSeconds) : 60;
     const [countdown, setCountdown] = useState(5);
     const [ruleChanged, setRuleChanged] = useState(false);
@@ -227,6 +232,27 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
         }
     };
 
+    const getIsOmokTargetEditable = () => {
+        if (room.status === 'PLAYING') return false;
+        if (selectedRule === GAME_RULES.RANDOM) return false;
+        if (selectedRule === GAME_RULES.HOST) return isHost;
+
+        const isP1Omok = p1Faction.code === 'omok';
+        const isP2Omok = p2Faction.code === 'omok';
+        const isCurrentP1 = user.id === room.p1;
+        const isCurrentP2 = user.id === room.p2;
+
+        return (isCurrentP1 && isP1Omok) || (isCurrentP2 && isP2Omok);
+    };
+
+    const handleOmokStoneTargetChange = (e) => {
+        const parsed = Number(e.target.value);
+        if (!Number.isFinite(parsed)) return;
+        const normalized = Math.min(12, Math.max(6, Math.floor(parsed)));
+        if (!getIsOmokTargetEditable()) return;
+        onUpdateRoomSettings?.({ omokStoneTarget: normalized });
+    };
+
     /**
      * 특정 플레이어의 진영 변경 핸들러
      * @param {string} playerKey 'p1' or 'p2'
@@ -268,6 +294,8 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
         const mapList = Object.values(MAP_TYPES);
         const nextMap = mapList[Math.floor(Math.random() * mapList.length)];
         onUpdateRoomSettings?.({ roomMap: nextMap });
+        const nextStoneTarget = OMOK_STONE_TARGET_OPTIONS[Math.floor(Math.random() * OMOK_STONE_TARGET_OPTIONS.length)];
+        onUpdateRoomSettings?.({ omokStoneTarget: nextStoneTarget });
     };
 
     /* 게임 준비 핸들러 */
@@ -336,9 +364,11 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
 
                 {/* 1. 헤더 영역 (방 제목, 나가기) */}
                 <div className="card-header">
-                    <h2 className="room-title">{room.title}</h2>
+                    <h2 className="room-title">{room.title} {room.isPrivate ? '🔒' : ''}</h2>
                     <button className="btn-secondary btn-leave" onClick={onLeave}>나가기</button>
                 </div>
+
+                {room.isPrivate && <div className="game-entered-banner">이 방은 비공개 방입니다.</div>}
 
                 {/* 2. 플레이어 대결 영역 (VS) */}
                 <div className="player-vs-section">
@@ -424,6 +454,21 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
                             onBlur={handleTurnSecondsBlur}
                             disabled={isHostSettingsDisabled}
                         />
+                    </div>
+
+                    <div className="option-group">
+                        <label htmlFor="omok-stone-target-select">오목 돌 제거 승리(N)</label>
+                        <select
+                            id="omok-stone-target-select"
+                            className="common-select"
+                            value={omokStoneTarget}
+                            onChange={handleOmokStoneTargetChange}
+                            disabled={!getIsOmokTargetEditable()}
+                        >
+                            {OMOK_STONE_TARGET_OPTIONS.map((value) => (
+                                <option key={value} value={value}>{value}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 

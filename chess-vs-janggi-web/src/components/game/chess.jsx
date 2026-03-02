@@ -63,6 +63,21 @@ const createEmptyBoard = () => Array.from({ length: 8 }, () => Array.from({ leng
 
 const inBounds = (row, col) => row >= 0 && row < 8 && col >= 0 && col < 8;
 
+const ORTHOGONAL_DIRS = [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+];
+
+const DIAGONAL_DIRS = [
+    [1, 1],
+    [1, -1],
+];
+
+const OMOK_CONNECT_TARGET = 5;
+const DEFAULT_STONE_CAPTURE_WIN_TARGET = 8;
+
 const getDirection = (side) => (side === 'top' ? 1 : -1);
 
 const isInsidePalace = (side, row, col) => {
@@ -75,7 +90,64 @@ const normalizeFaction = (value) => {
     if (!value) return 'chess';
     const lower = String(value).toLowerCase();
     if (lower.includes('janggi') || value === '장기') return 'janggi';
+    if (lower.includes('omok') || value === '오목') return 'omok';
     return 'chess';
+};
+
+const isOmokStone = (piece) => piece?.faction === 'omok' && piece?.type === 'stone';
+
+const countLineOmokStone = (board, side, row, col, dr, dc) => {
+    let count = 0;
+    let nr = row + dr;
+    let nc = col + dc;
+
+    while (inBounds(nr, nc)) {
+        const piece = board[nr][nc];
+        if (!isOmokStone(piece) || piece.side !== side) break;
+        count += 1;
+        nr += dr;
+        nc += dc;
+    }
+
+    return count;
+};
+
+const hasOmokConnectTarget = (board, side, row, col, target = OMOK_CONNECT_TARGET) => {
+    const center = board[row][col];
+    if (!isOmokStone(center) || center.side !== side) return false;
+
+    const axes = [[1, 0], [0, 1], ...DIAGONAL_DIRS];
+    return axes.some(([dr, dc]) => {
+        const total = 1
+            + countLineOmokStone(board, side, row, col, dr, dc)
+            + countLineOmokStone(board, side, row, col, -dr, -dc);
+        return total >= target;
+    });
+};
+
+const countCapturedOmokStones = (capturedPieces) => {
+    if (!Array.isArray(capturedPieces)) return 0;
+    return capturedPieces.filter((piece) => isOmokStone(piece)).length;
+};
+
+const getFactionLabel = (faction) => {
+    if (faction === 'janggi') return '장기';
+    if (faction === 'omok') return '오목';
+    return '체스';
+};
+
+const canCaptureTarget = (piece, target) => {
+    if (!piece || !target || piece.faction === 'omok') return false;
+    if (isOmokStone(target)) return true;
+    return target.side !== piece.side;
+};
+
+const getSideFaction = (room, side) => {
+    const p1Faction = normalizeFaction(room?.p1Faction);
+    const p2Faction = normalizeFaction(room?.p2Faction);
+    const p1Side = p1Faction === 'chess' && p2Faction !== 'chess' ? 'bottom' : p2Faction === 'chess' && p1Faction !== 'chess' ? 'top' : 'bottom';
+    const p2Side = p1Side === 'bottom' ? 'top' : 'bottom';
+    return side === p1Side ? p1Faction : p2Faction;
 };
 
 const createPiece = (faction, type, side, moved = false) => ({
@@ -88,6 +160,9 @@ const createPiece = (faction, type, side, moved = false) => ({
 
 const getPieceSymbol = (piece) => {
     if (!piece) return '';
+    if (piece.faction === 'omok') {
+        return '';
+    }
     if (piece.faction === 'chess') {
         return CHESS_LABELS[piece.side]?.[piece.type] || '♟';
     }
@@ -105,6 +180,10 @@ const getFormationOrDefault = (value) => {
 };
 
 const getDefaultPieceTypes = (faction, formationKey) => {
+    if (faction === 'omok') {
+        return [];
+    }
+
     if (faction === 'chess') {
         return ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn'];
     }
@@ -116,6 +195,10 @@ const getDefaultPieceTypes = (faction, formationKey) => {
 
 const getDefaultPlacementsForSide = (faction, side, formationKey) => {
     const placements = [];
+    if (faction === 'omok') {
+        return placements;
+    }
+
     if (faction === 'chess') {
         const back = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
         const front = ['pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn'];
@@ -150,10 +233,10 @@ const buildBoardFromPlacements = (topPlacements, bottomPlacements) => {
     return board;
 };
 
-const addMoveIfValid = (moves, board, side, row, col, extra = {}) => {
+const addMoveIfValid = (moves, board, piece, row, col, extra = {}) => {
     if (!inBounds(row, col)) return;
     const target = board[row][col];
-    if (target && target.side === side) return;
+    if (target && !canCaptureTarget(piece, target)) return;
     moves.push({ row, col, ...extra });
 };
 
@@ -167,7 +250,7 @@ const getSlidingMoves = (board, piece, row, col, directions) => {
             if (!target) {
                 moves.push({ row: r, col: c });
             } else {
-                if (target.side !== piece.side) {
+                if (canCaptureTarget(piece, target)) {
                     moves.push({ row: r, col: c });
                 }
                 break;
@@ -198,7 +281,7 @@ const getChessMoves = (board, piece, row, col, lastMove) => {
             const tc = col + dc;
             if (!inBounds(tr, tc)) return;
             const target = board[tr][tc];
-            if (target && target.side !== piece.side) {
+            if (target && canCaptureTarget(piece, target)) {
                 moves.push({ row: tr, col: tc });
             }
         });
@@ -228,13 +311,21 @@ const getChessMoves = (board, piece, row, col, lastMove) => {
 
     if (piece.type === 'knight') {
         const jumps = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
-        jumps.forEach(([dr, dc]) => addMoveIfValid(moves, board, piece.side, row + dr, col + dc));
+        jumps.forEach(([dr, dc]) => {
+            const tr = row + dr;
+            const tc = col + dc;
+            if (!inBounds(tr, tc)) return;
+            const target = board[tr][tc];
+            if (!target || canCaptureTarget(piece, target)) {
+                moves.push({ row: tr, col: tc });
+            }
+        });
         return moves;
     }
 
     if (piece.type === 'king') {
         const around = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
-        around.forEach(([dr, dc]) => addMoveIfValid(moves, board, piece.side, row + dr, col + dc));
+        around.forEach(([dr, dc]) => addMoveIfValid(moves, board, piece, row + dr, col + dc));
 
         if (!piece.moved) {
             const leftRook = board[row][0];
@@ -261,10 +352,18 @@ const getJanggiMoves = (board, piece, row, col) => {
     const moves = [];
     const dir = getDirection(piece.side);
 
+    const addJanggiMove = (targetRow, targetCol, extra = {}) => {
+        if (!inBounds(targetRow, targetCol)) return;
+        const target = board[targetRow][targetCol];
+        if (!target || canCaptureTarget(piece, target)) {
+            moves.push({ row: targetRow, col: targetCol, ...extra });
+        }
+    };
+
     if (piece.type === 'soldier') {
-        addMoveIfValid(moves, board, piece.side, row + dir, col);
-        addMoveIfValid(moves, board, piece.side, row, col - 1);
-        addMoveIfValid(moves, board, piece.side, row, col + 1);
+        addJanggiMove(row + dir, col);
+        addJanggiMove(row, col - 1);
+        addJanggiMove(row, col + 1);
         return moves;
     }
 
@@ -322,8 +421,9 @@ const getJanggiMoves = (board, piece, row, col) => {
         patterns.forEach(({ block, targets }) => {
             const br = row + block[0];
             const bc = col + block[1];
-            if (!inBounds(br, bc) || board[br][bc]) return;
-            targets.forEach(([dr, dc]) => addMoveIfValid(moves, board, piece.side, row + dr, col + dc));
+            if (!inBounds(br, bc)) return;
+            if (board[br][bc] && !isOmokStone(board[br][bc])) return;
+            targets.forEach(([dr, dc]) => addJanggiMove(row + dr, col + dc));
         });
         return moves;
     }
@@ -348,8 +448,9 @@ const getJanggiMoves = (board, piece, row, col) => {
             const tr = row + target[0];
             const tc = col + target[1];
             if (!inBounds(b1r, b1c) || !inBounds(b2r, b2c) || !inBounds(tr, tc)) return;
-            if (board[b1r][b1c] || board[b2r][b2c]) return;
-            addMoveIfValid(moves, board, piece.side, tr, tc);
+            if (board[b1r][b1c] && !isOmokStone(board[b1r][b1c])) return;
+            if (board[b2r][b2c] && !isOmokStone(board[b2r][b2c])) return;
+            addJanggiMove(tr, tc);
         });
 
         return moves;
@@ -361,7 +462,7 @@ const getJanggiMoves = (board, piece, row, col) => {
             const tr = row + dr;
             const tc = col + dc;
             if (!isInsidePalace(piece.side, tr, tc)) return;
-            addMoveIfValid(moves, board, piece.side, tr, tc);
+            addJanggiMove(tr, tc);
         });
         return moves;
     }
@@ -369,11 +470,52 @@ const getJanggiMoves = (board, piece, row, col) => {
     return moves;
 };
 
-const getLegalMoves = (board, row, col, lastMove) => {
+const getLegalMoves = (board, row, col, lastMove, currentTurnSide = null) => {
     const piece = board[row][col];
     if (!piece) return [];
+    if (piece.faction === 'omok') return [];
+    if (piece.frozen && piece.side === currentTurnSide) return [];
     if (piece.faction === 'chess') return getChessMoves(board, piece, row, col, lastMove);
     return getJanggiMoves(board, piece, row, col);
+};
+
+const clearFrozenForSide = (board, side) => {
+    return board.map((line) => line.map((cell) => {
+        if (!cell || cell.side !== side || !cell.frozen) return cell;
+        return { ...cell, frozen: false };
+    }));
+};
+
+const applyOmokSuffocation = (board) => {
+    const toRemove = [];
+
+    for (let row = 0; row < 8; row += 1) {
+        for (let col = 0; col < 8; col += 1) {
+            const piece = board[row][col];
+            if (!piece || isOmokStone(piece)) continue;
+
+            const blockedByCross = ORTHOGONAL_DIRS.every(([dr, dc]) => {
+                const nr = row + dr;
+                const nc = col + dc;
+                return inBounds(nr, nc) && isOmokStone(board[nr][nc]);
+            });
+
+            if (blockedByCross) {
+                toRemove.push({ row, col, piece });
+            }
+        }
+    }
+
+    if (toRemove.length === 0) {
+        return { nextBoard: board, removedPieces: [] };
+    }
+
+    const nextBoard = board.map((line) => line.map((cell) => (cell ? { ...cell } : null)));
+    toRemove.forEach(({ row, col }) => {
+        nextBoard[row][col] = null;
+    });
+
+    return { nextBoard, removedPieces: toRemove.map((item) => item.piece) };
 };
 
 const applyMoveOnBoard = (board, from, move) => {
@@ -432,6 +574,7 @@ const isKingInCheck = (board, side, lastMove) => {
         for (let col = 0; col < 8; col += 1) {
             const piece = board[row][col];
             if (!piece || piece.side === side) continue;
+            if (piece.frozen) continue;
             const moves = getLegalMoves(board, row, col, lastMove);
             if (moves.some((move) => move.row === kingCell.row && move.col === kingCell.col)) {
                 return true;
@@ -446,7 +589,7 @@ const hasAnyEscapeMove = (board, side, lastMove) => {
         for (let col = 0; col < 8; col += 1) {
             const piece = board[row][col];
             if (!piece || piece.side !== side) continue;
-            const moves = getLegalMoves(board, row, col, lastMove);
+            const moves = getLegalMoves(board, row, col, lastMove, side);
             for (const move of moves) {
                 const { nextBoard } = applyMoveOnBoard(board, { row, col }, move);
                 if (!isKingInCheck(nextBoard, side, lastMove)) {
@@ -456,6 +599,29 @@ const hasAnyEscapeMove = (board, side, lastMove) => {
         }
     }
     return false;
+};
+
+const getJanggiPalaceSet = ({ p1Faction, p2Faction }) => {
+    const palace = new Set();
+    const p1 = normalizeFaction(p1Faction);
+    const p2 = normalizeFaction(p2Faction);
+    const p1Side = p1 === 'chess' && p2 !== 'chess' ? 'bottom' : p2 === 'chess' && p1 !== 'chess' ? 'top' : 'bottom';
+    const p2Side = p1Side === 'bottom' ? 'top' : 'bottom';
+
+    const addPalaceForSide = (side) => {
+        const rowStart = side === 'top' ? 0 : 5;
+        const rowEnd = side === 'top' ? 2 : 7;
+        for (let row = rowStart; row <= rowEnd; row += 1) {
+            for (let col = 3; col <= 5; col += 1) {
+                palace.add(`${row}-${col}`);
+            }
+        }
+    };
+
+    if (p1 === 'janggi') addPalaceForSide(p1Side);
+    if (p2 === 'janggi') addPalaceForSide(p2Side);
+
+    return palace;
 };
 
 const toMap = (placements) => {
@@ -473,15 +639,19 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
 
     const myFaction = normalizeFaction(room?.[`${myKey}Faction`]);
     const opponentFaction = normalizeFaction(room?.[`${opponentKey}Faction`]);
-    const p1Side = normalizeFaction(room?.p1Faction) === 'chess' ? 'bottom' : 'top';
-    const p2Side = normalizeFaction(room?.p2Faction) === 'chess' ? 'bottom' : 'top';
+    const p1Side = normalizeFaction(room?.p1Faction) === 'chess' && normalizeFaction(room?.p2Faction) !== 'chess'
+        ? 'bottom'
+        : normalizeFaction(room?.p2Faction) === 'chess' && normalizeFaction(room?.p1Faction) !== 'chess'
+            ? 'top'
+            : 'bottom';
+    const p2Side = p1Side === 'bottom' ? 'top' : 'bottom';
     const sideToUserId = {
         [p1Side]: room?.p1,
         [p2Side]: room?.p2,
     };
 
-    const mySide = myFaction === 'chess' ? 'bottom' : 'top';
-    const opponentSide = opponentFaction === 'chess' ? 'bottom' : 'top';
+    const mySide = myKey === 'p1' ? p1Side : p2Side;
+    const opponentSide = myKey === 'p1' ? p2Side : p1Side;
     const isFlipped = mySide === 'top';
     const myColorCode = room?.[`${myKey}Color`] || (isHost ? 'white' : 'black');
     const opponentColorCode = room?.[`${opponentKey}Color`] || (isHost ? 'black' : 'white');
@@ -507,7 +677,12 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
     const [capturedBySide, setCapturedBySide] = useState({ top: [], bottom: [] });
     const [remainingSeconds, setRemainingSeconds] = useState(60);
     const [warningSoundEnabled, setWarningSoundEnabled] = useState(true);
+    const [frozenNoticeVisible, setFrozenNoticeVisible] = useState(false);
+    const [turnStartNotice, setTurnStartNotice] = useState('');
     const lastWarningBeepSecondRef = useRef(null);
+    const frozenNoticeTimerRef = useRef(null);
+    const turnStartNoticeTimerRef = useRef(null);
+    const prevStartedRef = useRef(false);
 
     const myCustomLayout = Array.isArray(gameSetup[`${myKey}CustomLayout`]) ? gameSetup[`${myKey}CustomLayout`] : [];
     const opponentCustomLayout = Array.isArray(gameSetup[`${opponentKey}CustomLayout`]) ? gameSetup[`${opponentKey}CustomLayout`] : [];
@@ -586,8 +761,9 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
     const opponentReady = !!gameSetup[`${opponentKey}Ready`];
     const canToggleReady = effectiveMyMode !== 'custom' || unplacedPool.length === 0;
     const turnLimitSeconds = Number.isFinite(Number(room?.turnSeconds)) ? Math.min(600, Math.max(1, Math.floor(Number(room.turnSeconds)))) : 60;
-    const p1Lives = Number.isFinite(Number(gameSetup.p1Lives)) ? Math.min(3, Math.max(0, Math.floor(Number(gameSetup.p1Lives)))) : 3;
-    const p2Lives = Number.isFinite(Number(gameSetup.p2Lives)) ? Math.min(3, Math.max(0, Math.floor(Number(gameSetup.p2Lives)))) : 3;
+    const stoneCaptureWinTarget = Number.isFinite(Number(room?.omokStoneTarget))
+        ? Math.min(12, Math.max(6, Math.floor(Number(room.omokStoneTarget))))
+        : DEFAULT_STONE_CAPTURE_WIN_TARGET;
 
     const formationPreviewItems = useMemo(
         () => FORMATION_KEYS.map((key) => ({ key, ...JANGGI_FORMATIONS[key] })),
@@ -660,6 +836,45 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
     }, [gameSetup.started, turnSide, turnLimitSeconds]);
 
     useEffect(() => {
+        return () => {
+            if (frozenNoticeTimerRef.current) {
+                clearTimeout(frozenNoticeTimerRef.current);
+            }
+            if (turnStartNoticeTimerRef.current) {
+                clearTimeout(turnStartNoticeTimerRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const started = !!gameSetup.started;
+        if (!started) {
+            prevStartedRef.current = false;
+            setTurnStartNotice('');
+            if (turnStartNoticeTimerRef.current) {
+                clearTimeout(turnStartNoticeTimerRef.current);
+                turnStartNoticeTimerRef.current = null;
+            }
+            return;
+        }
+
+        if (!prevStartedRef.current) {
+            const firstTurnSide = gameSetup.firstTurn || turnSide;
+            const noticeText = firstTurnSide === mySide ? '선턴' : '후턴';
+            setTurnStartNotice(noticeText);
+            if (turnStartNoticeTimerRef.current) {
+                clearTimeout(turnStartNoticeTimerRef.current);
+            }
+            turnStartNoticeTimerRef.current = setTimeout(() => {
+                setTurnStartNotice('');
+                turnStartNoticeTimerRef.current = null;
+            }, 1400);
+        }
+
+        prevStartedRef.current = started;
+    }, [gameSetup.started, gameSetup.firstTurn, mySide, turnSide]);
+
+    useEffect(() => {
         if (!gameSetup.started || winner || !warningSoundEnabled) return;
         if (remainingSeconds <= 0 || remainingSeconds > 5) return;
         if (lastWarningBeepSecondRef.current === remainingSeconds) return;
@@ -704,28 +919,7 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
         if (remainingSeconds > 0) return;
         if (!isHost) return;
 
-        const loserSide = turnSide;
-        const nextTurn = loserSide === 'top' ? 'bottom' : 'top';
-        const loserIsP1 = loserSide === p1Side;
-        const nextP1Lives = loserIsP1 ? Math.max(0, p1Lives - 1) : p1Lives;
-        const nextP2Lives = loserIsP1 ? p2Lives : Math.max(0, p2Lives - 1);
-        const loserLives = loserIsP1 ? nextP1Lives : nextP2Lives;
-
-        if (loserLives <= 0) {
-            const timeoutWinner = nextTurn;
-            setWinner(timeoutWinner);
-            setWinnerReason('timeout');
-
-            emitSetupPatch({
-                started: true,
-                turnSide: timeoutWinner,
-                winner: timeoutWinner,
-                winnerReason: 'timeout',
-                p1Lives: nextP1Lives,
-                p2Lives: nextP2Lives,
-            });
-            return;
-        }
+        const nextTurn = turnSide === 'top' ? 'bottom' : 'top';
 
         setTurnSide(nextTurn);
         setSelectedCell(null);
@@ -736,10 +930,8 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
             turnSide: nextTurn,
             winner: null,
             winnerReason: null,
-            p1Lives: nextP1Lives,
-            p2Lives: nextP2Lives,
         });
-    }, [remainingSeconds, gameSetup.started, winner, isHost, turnSide, p1Side, p1Lives, p2Lives]);
+    }, [remainingSeconds, gameSetup.started, winner, isHost, turnSide]);
 
     const updateCustomLayout = (nextLayout) => {
         emitSetupPatch({
@@ -789,7 +981,68 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
         if (winner) return;
         const currentTurnUserId = sideToUserId[turnSide];
         if (currentTurnUserId && user?.id !== currentTurnUserId) return;
+        const currentTurnFaction = getSideFaction(room, turnSide);
         const clicked = battleBoard[row][col];
+
+        if (clicked?.side === turnSide && clicked?.frozen) {
+            setSelectedCell(null);
+            setLegalMoves([]);
+            setFrozenNoticeVisible(true);
+            if (frozenNoticeTimerRef.current) {
+                clearTimeout(frozenNoticeTimerRef.current);
+            }
+            frozenNoticeTimerRef.current = setTimeout(() => {
+                setFrozenNoticeVisible(false);
+                frozenNoticeTimerRef.current = null;
+            }, 1700);
+            return;
+        }
+
+        if (currentTurnFaction === 'omok') {
+            if (clicked) return;
+
+            const boardWithStone = battleBoard.map((line) => line.map((cell) => (cell ? { ...cell } : null)));
+            boardWithStone[row][col] = createPiece('omok', 'stone', turnSide, true);
+
+            const { nextBoard: afterSuffocation, removedPieces } = applyOmokSuffocation(boardWithStone);
+            const nextCapturedBySide = {
+                top: [...capturedBySide.top],
+                bottom: [...capturedBySide.bottom],
+            };
+            if (removedPieces.length > 0) {
+                nextCapturedBySide[turnSide].push(...removedPieces);
+            }
+
+            const nextTurn = turnSide === 'top' ? 'bottom' : 'top';
+            const wonByConnect5 = hasOmokConnectTarget(afterSuffocation, turnSide, row, col, OMOK_CONNECT_TARGET);
+            const kingKilled = removedPieces.some((piece) => piece.type === 'king');
+            const nextWinner = wonByConnect5 || kingKilled ? turnSide : null;
+            const nextWinnerReason = wonByConnect5 ? 'connect5' : kingKilled ? 'capture' : null;
+
+            setBattleBoard(afterSuffocation);
+            setSelectedCell(null);
+            setLegalMoves([]);
+            setCapturedBySide(nextCapturedBySide);
+            setWinner(nextWinner);
+            setWinnerReason(nextWinnerReason);
+            setTurnSide(nextTurn);
+
+            emitSetupPatch({
+                started: true,
+                battleBoard: afterSuffocation,
+                turnSide: nextTurn,
+                winner: nextWinner,
+                winnerReason: nextWinnerReason,
+                lastMove: {
+                    piece: boardWithStone[row][col],
+                    from: null,
+                    to: { row, col },
+                    wasDoubleStep: false,
+                },
+                capturedBySide: nextCapturedBySide,
+            });
+            return;
+        }
 
         if (selectedCell) {
             const validMove = legalMoves.find((move) => move.row === row && move.col === col);
@@ -800,6 +1053,16 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                 const { nextBoard, movedPiece, captured } = applyMoveOnBoard(battleBoard, selectedCell, validMove);
                 if (!movedPiece) return;
 
+                const thawedBoard = clearFrozenForSide(nextBoard, turnSide);
+                const capturedStone = isOmokStone(captured);
+                if (capturedStone) {
+                    const updatedMover = thawedBoard[validMove.row][validMove.col];
+                    if (updatedMover) {
+                        thawedBoard[validMove.row][validMove.col] = { ...updatedMover, frozen: true };
+                    }
+                }
+                const finalMovedPiece = thawedBoard[validMove.row][validMove.col] || movedPiece;
+
                 const nextCapturedBySide = {
                     top: [...capturedBySide.top],
                     bottom: [...capturedBySide.bottom],
@@ -808,21 +1071,24 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                     nextCapturedBySide[turnSide].push(captured);
                 }
 
+                const capturedStoneCount = countCapturedOmokStones(nextCapturedBySide[turnSide]);
+                const wonByStoneCapture = capturedStoneCount >= stoneCaptureWinTarget;
+
                 const nextTurn = turnSide === 'top' ? 'bottom' : 'top';
                 const nextLastMove = {
-                    piece: movedPiece,
+                    piece: finalMovedPiece,
                     from: selectedCell,
                     to: { row: validMove.row, col: validMove.col },
                     wasDoubleStep:
-                        movedPiece.faction === 'chess' &&
-                        movedPiece.type === 'pawn' &&
+                        finalMovedPiece.faction === 'chess' &&
+                        finalMovedPiece.type === 'pawn' &&
                         Math.abs(validMove.row - selectedCell.row) === 2,
                 };
 
-                const nextWinner = captured?.type === 'king' ? turnSide : null;
-                const nextWinnerReason = captured?.type === 'king' ? 'capture' : null;
+                const nextWinner = wonByStoneCapture || captured?.type === 'king' ? turnSide : null;
+                const nextWinnerReason = wonByStoneCapture || captured?.type === 'king' ? 'capture' : null;
 
-                setBattleBoard(nextBoard);
+                setBattleBoard(thawedBoard);
                 setLastMove(nextLastMove);
                 setSelectedCell(null);
                 setLegalMoves([]);
@@ -833,7 +1099,7 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
 
                 emitSetupPatch({
                     started: true,
-                    battleBoard: nextBoard,
+                    battleBoard: thawedBoard,
                     turnSide: nextTurn,
                     winner: nextWinner,
                     winnerReason: nextWinnerReason,
@@ -851,7 +1117,7 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
         }
 
         setSelectedCell({ row, col });
-        const rawMoves = getLegalMoves(battleBoard, row, col, lastMove);
+        const rawMoves = getLegalMoves(battleBoard, row, col, lastMove, turnSide);
         setLegalMoves(rawMoves);
     };
 
@@ -942,19 +1208,55 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
         });
     };
 
+    const handleExitToRoomLobby = () => {
+        onUpdateRoomSettings?.({
+            p1Ready: false,
+            p2Ready: false,
+            gameSetup: {
+                started: false,
+                firstTurn: null,
+                turnSide: null,
+                winner: null,
+                winnerReason: null,
+                battleBoard: null,
+                lastMove: null,
+                capturedBySide: { top: [], bottom: [] },
+                p1Lives: 3,
+                p2Lives: 3,
+                p1Ready: false,
+                p2Ready: false,
+            },
+        });
+    };
+
     const moveKeySet = new Set(legalMoves.map((move) => `${move.row}-${move.col}`));
 
     const myCaptured = capturedBySide[mySide] || [];
+    const janggiPalaceSet = useMemo(
+        () => getJanggiPalaceSet({ p1Faction: room?.p1Faction, p2Faction: room?.p2Faction }),
+        [room?.p1Faction, room?.p2Faction],
+    );
 
     const getCellDataByDisplay = (displayRow, displayCol) => {
         const { row, col } = mapDisplayToBoard(displayRow, displayCol);
         const boardSource = gameSetup.started ? battleBoard : setupBoard;
+        const key = `${row}-${col}`;
+        const isJanggiPalace = janggiPalaceSet.has(key);
+        const hasTop = janggiPalaceSet.has(`${row - 1}-${col}`);
+        const hasBottom = janggiPalaceSet.has(`${row + 1}-${col}`);
+        const hasLeft = janggiPalaceSet.has(`${row}-${col - 1}`);
+        const hasRight = janggiPalaceSet.has(`${row}-${col + 1}`);
         return {
             boardRow: row,
             boardCol: col,
             piece: boardSource[row][col],
             isSelected: selectedCell?.row === row && selectedCell?.col === col,
             isLegal: moveKeySet.has(`${row}-${col}`),
+            isJanggiPalace,
+            palaceTopEdge: isJanggiPalace && !hasTop,
+            palaceBottomEdge: isJanggiPalace && !hasBottom,
+            palaceLeftEdge: isJanggiPalace && !hasLeft,
+            palaceRightEdge: isJanggiPalace && !hasRight,
         };
     };
 
@@ -965,24 +1267,50 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
     const firstTurnSide = gameSetup.firstTurn || turnSide;
     const firstTurnUserId = sideToUserId[firstTurnSide] || (firstTurnSide === 'bottom' ? '체스' : '장기');
     const currentTurnUserId = sideToUserId[turnSide] || (turnSide === 'bottom' ? '체스' : '장기');
-    const checkedNow = gameSetup.started && !winner ? isKingInCheck(battleBoard, turnSide, lastMove) : false;
-    const checkmateNow = checkedNow && hasAnyEscapeMove(battleBoard, turnSide, lastMove) === false;
-    const checkedUserId = checkedNow ? currentTurnUserId : null;
     const winnerUserId = winner ? sideToUserId[winner] : null;
     const loserUserId = winner ? sideToUserId[winner === 'top' ? 'bottom' : 'top'] : null;
-    const winnerReasonLabel = winnerReason === 'checkmate' ? '체크메이트' : winnerReason === 'capture' ? '왕/궁 포획' : winnerReason === 'timeout' ? '시간패' : '';
+    const winnerFaction = winner ? getSideFaction(room, winner) : null;
+    const winnerCapturedStoneCount = winner ? countCapturedOmokStones(capturedBySide[winner] || []) : 0;
+    const isStoneCaptureWin = winnerReason === 'capture' && winnerFaction !== 'omok' && winnerCapturedStoneCount >= stoneCaptureWinTarget;
+    const winnerReasonLabel = winnerReason === 'checkmate'
+        ? '체크메이트'
+        : winnerReason === 'connect5'
+            ? `${OMOK_CONNECT_TARGET}목 완성`
+            : winnerReason === 'capture'
+                ? (isStoneCaptureWin ? `돌 ${stoneCaptureWinTarget}개 제거` : '왕/궁 포획')
+                : winnerReason === 'timeout'
+                    ? '시간패'
+                    : '';
     const topUserId = sideToUserId.top || (normalizeFaction(room?.p1Faction) === 'janggi' ? room?.p1 : room?.p2) || 'TOP';
     const bottomUserId = sideToUserId.bottom || (normalizeFaction(room?.p1Faction) === 'chess' ? room?.p1 : room?.p2) || 'BOTTOM';
     const activeSide = gameSetup.started ? turnSide : firstTurnSide;
-    const myLives = myKey === 'p1' ? p1Lives : p2Lives;
-    const opponentLives = myKey === 'p1' ? p2Lives : p1Lives;
-    const leftAlertType = checkmateNow ? 'checkmate' : checkedUserId ? 'check' : null;
-    const alertSide = checkmateNow || checkedNow ? turnSide : null;
-    const leftAlertText = checkmateNow
-        ? `체크메이트 경고: ${checkedUserId || '상대'}`
-        : checkedUserId
-            ? `장군: ${checkedUserId}`
-            : '';
+    const hasOmokPlayer = myFaction === 'omok' || opponentFaction === 'omok';
+    const commonRules = [
+        '공용: 턴 시간이 0초가 되면 상대 턴으로 자동 전환됩니다.',
+        '공용: 왕/궁을 포획하면 즉시 승리합니다.',
+    ];
+    if (hasOmokPlayer) {
+        commonRules.push(
+            '공용(오목전): 오목 돌은 벽입니다. (나이트/마/상 제외)',
+            '공용(오목전): 비오목 기물은 돌을 밟아 파괴할 수 있습니다.',
+            '공용(오목전): 돌을 파괴한 기물은 1턴 동결됩니다.',
+            '공용(오목전): 오목이 상하좌우 4방향 포위하면 기물이 제거됩니다.',
+            `공용(오목전): 비오목 진영은 돌 ${stoneCaptureWinTarget}개 제거 시 승리합니다.`,
+        );
+    }
+
+    const sideRules = [];
+    if (myFaction === 'omok') {
+        sideRules.push(`내 진영(오목): ${OMOK_CONNECT_TARGET}목 완성 시 승리합니다.`);
+    }
+    if (opponentFaction === 'omok') {
+        sideRules.push(`상대 진영(오목): ${OMOK_CONNECT_TARGET}목 완성 시 승리합니다.`);
+    }
+
+    const ruleItems = [...commonRules, ...sideRules];
+    const leftAlertType = null;
+    const alertSide = null;
+    const leftAlertText = '';
 
     return (
         <div className="chess-board-wrapper">
@@ -993,8 +1321,6 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                     activeSide={activeSide}
                     firstTurnUserId={firstTurnUserId}
                     remainingSeconds={remainingSeconds}
-                    myLives={myLives}
-                    opponentLives={opponentLives}
                     warningSoundEnabled={warningSoundEnabled}
                     onToggleWarningSound={() => setWarningSoundEnabled((prev) => !prev)}
                     alertSide={alertSide}
@@ -1003,18 +1329,17 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                 />
 
                 <div className="chess-board-area">
-                    <div className="board-top-info">내 화면 기준: 내 기물은 항상 하단에 표시됩니다.</div>
                     <div className={`chess-board ${!gameSetup.started && effectiveMyMode === 'custom' ? 'setup-custom' : ''}`} role="grid" aria-label="체스 vs 장기 보드">
                         {Array.from({ length: 8 }, (_, displayRow) =>
                             Array.from({ length: 8 }, (_, displayCol) => {
-                                const { piece, isSelected, isLegal } = getCellDataByDisplay(displayRow, displayCol);
+                                const { piece, isSelected, isLegal, isJanggiPalace, palaceTopEdge, palaceBottomEdge, palaceLeftEdge, palaceRightEdge } = getCellDataByDisplay(displayRow, displayCol);
                                 const isDark = (displayRow + displayCol) % 2 === 1;
 
                                 return (
                                     <button
                                         key={`${displayRow}-${displayCol}`}
                                         type="button"
-                                        className={`chess-cell ${isDark ? 'dark' : 'light'} ${isSelected ? 'selected' : ''} ${isLegal ? 'legal' : ''}`}
+                                        className={`chess-cell ${isDark ? 'dark' : 'light'} ${isJanggiPalace ? 'janggi-palace-cell' : ''} ${palaceTopEdge ? 'palace-edge-top' : ''} ${palaceBottomEdge ? 'palace-edge-bottom' : ''} ${palaceLeftEdge ? 'palace-edge-left' : ''} ${palaceRightEdge ? 'palace-edge-right' : ''} ${isSelected ? 'selected' : ''} ${isLegal ? 'legal' : ''}`}
                                         role="gridcell"
                                         onClick={() => handleCellClick(displayRow, displayCol)}
                                         onDragOver={handleAllowDrop}
@@ -1024,7 +1349,7 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                                             <span
                                                 draggable={!gameSetup.started && effectiveMyMode === 'custom' && piece.side === mySide}
                                                 onDragStart={(event) => handleDragStartBoardPiece(event, displayRow, displayCol)}
-                                                className={`chess-piece ${piece.side === mySide ? 'mine' : 'opponent'} ${!gameSetup.started && effectiveMyMode === 'custom' ? 'custom-setup-piece' : ''}`}
+                                                className={`chess-piece ${piece.side === mySide ? 'mine' : 'opponent'} ${piece.faction === 'janggi' ? 'janggi-token-piece' : ''} ${piece.faction === 'omok' ? 'omok-stone-piece' : ''} ${piece.frozen ? 'frozen' : ''} ${!gameSetup.started && effectiveMyMode === 'custom' ? 'custom-setup-piece' : ''}`}
                                                 style={{ color: getPieceColorBySide(piece.side) }}
                                             >
                                                 {getPieceSymbol(piece)}
@@ -1035,7 +1360,19 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                             }),
                         )}
                     </div>
-                    <div className="board-bottom-info">상대 준비 상태: {opponentStatusText}</div>
+                    {turnStartNotice && (
+                        <>
+                            <div className="turn-start-backdrop" aria-hidden="true" />
+                            <div className="turn-start-notice" role="status" aria-live="polite">
+                                {turnStartNotice}
+                            </div>
+                        </>
+                    )}
+                    {frozenNoticeVisible && (
+                        <div className="frozen-notice" role="status" aria-live="polite">
+                            동결 상태: 이 기물은 이번 턴에 움직일 수 없습니다.
+                        </div>
+                    )}
                 </div>
 
                 <GameRightStatusPanel
@@ -1050,10 +1387,14 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                     canHostStart={canHostStart}
                     onStart={startBattle}
                     customReadyHint={!canToggleReady && effectiveMyMode === 'custom' ? '자율선택 모드에서는 모든 기물을 배치해야 준비할 수 있습니다.' : ''}
-                    winnerHint={winner ? `${winner === 'bottom' ? '체스' : '장기'} 승리 (${winnerReason === 'timeout' ? '시간패' : '왕/궁 포획'})` : '시간 0초 시 목숨 1개가 줄고 턴이 자동으로 넘어갑니다.'}
+                    ruleItems={ruleItems}
                     capturedPieces={myCaptured}
                     renderCapturedPiece={(piece) => (
-                        <span key={piece.id} className="reserve-piece captured-piece" style={{ color: getPieceColorBySide(piece.side) }}>
+                        <span
+                            key={piece.id}
+                            className={`reserve-piece captured-piece ${piece.faction === 'omok' ? 'captured-omok-stone' : ''}`}
+                            style={{ color: getPieceColorBySide(piece.side) }}
+                        >
                             {getPieceSymbol(piece)}
                         </span>
                     )}
@@ -1127,7 +1468,7 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                     isVisible={!!winner}
                     winnerId={winnerUserId}
                     loserId={loserUserId}
-                    reason={winnerReasonLabel}
+                    onExit={handleExitToRoomLobby}
                 />
             </div>
         </div>

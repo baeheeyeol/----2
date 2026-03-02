@@ -53,8 +53,12 @@
 
 .btn-cancel {
   flex: 1;
-  background: #4a5568;
-  color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;
+  background: var(--bg-dark-depth-3);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .btn-create {

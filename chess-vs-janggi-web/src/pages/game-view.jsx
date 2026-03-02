@@ -1,6 +1,7 @@
 import React from 'react';
 import './game-view.css';
 import Chess from '../components/game/chess';
+import Janggi from '../components/game/janggi';
 import Omok from '../components/game/omok';
 
 const GameView = ({ room, user, onLeave, onUpdateRoomSettings }) => {
@@ -8,6 +9,7 @@ const GameView = ({ room, user, onLeave, onUpdateRoomSettings }) => {
 
     const mapValue = (room.roomMap || '').toLowerCase();
     const isChessMap = room.roomMap === '체스판' || mapValue === 'chess';
+    const isJanggiMap = room.roomMap === '장기판' || mapValue === 'janggi';
     const isOmokMap = room.roomMap === '바둑판' || mapValue === 'omok' || mapValue === 'baduk';
 
     return (
@@ -20,6 +22,8 @@ const GameView = ({ room, user, onLeave, onUpdateRoomSettings }) => {
             <div className="game-view-body">
                 {isChessMap ? (
                     <Chess room={room} user={user} onUpdateRoomSettings={onUpdateRoomSettings} />
+                ) : isJanggiMap ? (
+                    <Janggi room={room} user={user} onUpdateRoomSettings={onUpdateRoomSettings} />
                 ) : isOmokMap ? (
                     <Omok room={room} user={user} onUpdateRoomSettings={onUpdateRoomSettings} />
                 ) : (

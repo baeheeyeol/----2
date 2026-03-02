@@ -13,7 +13,7 @@ const GameRightStatusPanel = ({
     onStart,
     customReadyHint,
     setupChildren,
-    winnerHint,
+    ruleItems,
     capturedPieces,
     renderCapturedPiece,
 }) => {
@@ -49,8 +49,13 @@ const GameRightStatusPanel = ({
 
             {gameStarted && (
                 <>
-                    <div className="capture-area" aria-label="게임 결과 힌트">
-                        <div className="reserve-hint">{winnerHint}</div>
+                    <div className="capture-area" aria-label="규칙">
+                        <div className="reserve-title">규칙</div>
+                        <ol className="rule-list">
+                            {(ruleItems || []).map((item, index) => (
+                                <li key={`${index}-${item}`} className="rule-item">{item}</li>
+                            ))}
+                        </ol>
                     </div>
 
                     <div className="capture-area" aria-label="잡은 기물">

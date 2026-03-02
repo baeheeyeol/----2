@@ -1,0 +1,271 @@
+.janggi-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+}
+
+.janggi-board-area {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.janggi-board-shell {
+  height: 100%;
+  max-height: 100%;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  aspect-ratio: 9 / 10;
+}
+
+.janggi-board {
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #c8925a 0%, #b57f47 100%);
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  overflow: hidden;
+}
+
+.janggi-point {
+  border-right: 1px solid rgba(0, 0, 0, 0.28);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.28);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+}
+
+.janggi-point.palace {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.janggi-point.selected {
+  box-shadow: inset 0 0 0 2px var(--point-blue);
+}
+
+.janggi-point.legal {
+  outline: 3px solid rgba(72, 187, 120, 0.95);
+  outline-offset: -3px;
+  z-index: 2;
+}
+
+.janggi-point.legal::after {
+  content: '';
+  position: absolute;
+  width: clamp(8px, 1.05vmin, 12px);
+  height: clamp(8px, 1.05vmin, 12px);
+  border-radius: 50%;
+  background: rgba(72, 187, 120, 0.95);
+  box-shadow:
+    0 0 0 2px rgba(15, 23, 42, 0.72),
+    0 0 10px rgba(72, 187, 120, 0.75);
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .janggi-point.legal::after {
+  box-shadow:
+    0 0 0 2px rgba(248, 250, 252, 0.78),
+    0 0 10px rgba(72, 187, 120, 0.85);
+}
+
+.janggi-point.palace.legal {
+  background: rgba(72, 187, 120, 0.14);
+}
+
+.janggi-piece {
+  width: min(76%, 48px);
+  aspect-ratio: 1 / 1;
+  position: relative;
+  clip-path: polygon(28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%, 0 28%);
+  overflow: hidden;
+  background: transparent;
+  color: var(--text-main);
+  font-size: clamp(19px, 2.2vmin, 31px);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  box-shadow: none;
+  isolation: isolate;
+  z-index: 0;
+}
+
+.janggi-piece::before,
+.janggi-piece::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.janggi-piece::before {
+  background: rgba(2, 6, 23, 0.96);
+  z-index: -2;
+}
+
+.janggi-piece::after {
+  inset: 0;
+  background: rgba(255, 255, 255, 0.98);
+  clip-path: polygon(28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%, 0 28%);
+  transform: scale(0.86);
+  transform-origin: center;
+  z-index: -1;
+}
+
+.janggi-piece.mine {
+  border-color: rgba(15, 23, 42, 0.92);
+}
+
+.janggi-piece.opponent {
+  border-color: rgba(15, 23, 42, 0.92);
+}
+
+.janggi-piece.omok-stone {
+  width: min(56%, 36px);
+  height: min(56%, 36px);
+  border-radius: 50%;
+  clip-path: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  background: currentColor;
+  font-size: 0;
+  box-shadow:
+    0 0 0 1.5px rgba(0, 0, 0, 0.65),
+    0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.janggi-piece.omok-stone::before,
+.janggi-piece.omok-stone::after {
+  display: none;
+}
+
+:root[data-theme='dark'] .janggi-piece {
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+  box-shadow: none;
+}
+
+:root[data-theme='dark'] .janggi-piece::before {
+  background: rgba(248, 250, 252, 0.92);
+}
+
+:root[data-theme='dark'] .janggi-piece::after {
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.reserve-piece .janggi-piece.omok-stone,
+.reserve-piece.omok-stone {
+  width: 18px;
+  height: 18px;
+}
+
+.janggi-setup {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-dark-depth-2);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.janggi-setup-row {
+  display: flex;
+  gap: 8px;
+}
+
+.janggi-mode-btn {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-dark-depth-3);
+  color: var(--text-main);
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.janggi-mode-btn.active {
+  border-color: var(--point-blue);
+  color: var(--point-blue);
+}
+
+.janggi-pool {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+
+.janggi-pool-piece {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: var(--bg-dark-depth-3);
+  color: var(--text-main);
+  font-size: 24px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+
+.janggi-pool-piece.active {
+  border-color: var(--point-blue);
+  box-shadow: inset 0 0 0 1px var(--point-blue);
+}
+
+.janggi-setup-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(245, 158, 11, 0.95);
+  border-radius: 10px;
+  background: rgba(32, 23, 9, 0.92);
+  color: #ffe8bf;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 26;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+:root:not([data-theme='dark']) .janggi-setup-notice {
+  background: rgba(255, 250, 238, 0.96);
+  color: #7c2d12;
+}
+
+@media (max-width: 1100px) {
+  .janggi-board-shell {
+    height: auto;
+    width: min(86vmin, calc(100vw - 36px));
+    max-height: none;
+  }
+}

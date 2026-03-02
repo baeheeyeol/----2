@@ -32,18 +32,40 @@ function App() {
   // 방정보
   const [currentRoom, setCurrentRoom] = useState(null);
   const [isGameViewVisible, setIsGameViewVisible] = useState(false);
+  const [forfeitResult, setForfeitResult] = useState(null);
   const isGameStarted = currentRoom?.status === 'PLAYING';
 
   // [방어적 코딩] 이벤트 리스너 내부에서 최신 State를 참조하기 위한 Ref
   // useEffect의 의존성 배열 문제로 인해 비동기 콜백 안에서 state가 옛날 값으로 남는 것을 방지합니다. 
   const userRef = useRef(user);
   const roomRef = useRef(currentRoom);
+  const sessionAlertLockRef = useRef(false);
 
   // State가 변할 때마다 Ref도 최신화 시켜줍니다.
   useEffect(() => {
     userRef.current = user;
     roomRef.current = currentRoom;
   }, [user, currentRoom]);
+
+  useEffect(() => {
+    if (user) {
+      sessionAlertLockRef.current = false;
+    }
+  }, [user]);
+
+  const forceLogoutToMain = (message) => {
+    if (sessionAlertLockRef.current) return;
+    sessionAlertLockRef.current = true;
+
+    setCurrentRoom(null);
+    setIsGameViewVisible(false);
+    setUser(null);
+    localStorage.removeItem(STORAGE_KEY);
+
+    if (message) {
+      alert(message);
+    }
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', themeMode);
@@ -91,11 +113,25 @@ function App() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(userInfo));
     });
 
+    socket.on('user_profile_updated', (profile) => {
+      if (!profile?.id) return;
+
+      setUser((prev) => {
+        if (!prev || prev.id !== profile.id) return prev;
+        const nextUser = { ...prev, ...profile };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+        return nextUser;
+      });
+    });
+
     // 서버로부터 에러 응답이 오면 실행
     socket.on('login_error', (data) => {
-      alert(data.message);
-      setUser(null);
-      localStorage.removeItem(STORAGE_KEY);
+      forceLogoutToMain(data.message || '세션이 만료되었습니다. 다시 로그인해주세요.');
+    });
+
+    socket.on('disconnect', (reason) => {
+      if (!userRef.current) return;
+      forceLogoutToMain(`세션 연결이 끊어졌습니다. (${reason})\n메인 화면으로 이동합니다.`);
     });
 
     // 방 생성 성공 시 실행
@@ -143,9 +179,18 @@ function App() {
       }
     });
 
+    socket.on('forfeit_result', (payload) => {
+      if (!payload?.winnerId || !payload?.loserId) return;
+      setForfeitResult(payload);
+      window.setTimeout(() => {
+        setForfeitResult((prev) => (prev === payload ? null : prev));
+      }, 2200);
+    });
+
     // 컴포넌트가 사라질 때 리스너 정리 (메모리 누수 방지)
     return () => {
       socket.off('login_success');
+      socket.off('user_profile_updated');
       socket.off('login_error');
       socket.off('connect');
       socket.off('room_list');
@@ -157,8 +202,44 @@ function App() {
       socket.off('leave_room_success');
       socket.off('room_closed');
       socket.off('room_update');
+      socket.off('forfeit_result');
+      socket.off('disconnect');
     };
   }, []); // 의존성 배열 비움 (한 번만 실행)
+
+  useEffect(() => {
+    const verifyStoredSession = () => {
+      if (!userRef.current) return;
+
+      const storedUser = getStoredUser();
+      if (!storedUser?.id) {
+        forceLogoutToMain('로컬 캐시 정보가 사라져 자동 로그아웃되었습니다. 다시 로그인해주세요.');
+      }
+    };
+
+    const handleStorage = (event) => {
+      if (event.key !== STORAGE_KEY) return;
+      if (userRef.current && !event.newValue) {
+        forceLogoutToMain('캐시 정보 변경이 감지되어 로그아웃되었습니다. 다시 로그인해주세요.');
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        verifyStoredSession();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', verifyStoredSession);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', verifyStoredSession);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // 2. 로그인 요청 핸들러
   const handleLogin = (id, pw) => {
@@ -262,6 +343,17 @@ function App() {
         </aside>
 
       </main>
+
+      {forfeitResult && (
+        <div className="forfeit-result-overlay" role="dialog" aria-modal="true" aria-live="polite">
+          <div className="forfeit-result-modal">
+            <div className="forfeit-result-title">경기 종료</div>
+            <div className="forfeit-result-body">
+              {user?.id === forfeitResult.winnerId ? '기권승' : user?.id === forfeitResult.loserId ? '기권패' : '기권 결과'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

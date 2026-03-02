@@ -13,8 +13,6 @@ const GameLeftStatusPanel = ({
     activeSide,
     firstTurnUserId,
     remainingSeconds,
-    myLives,
-    opponentLives,
     warningSoundEnabled,
     onToggleWarningSound,
     alertSide,
@@ -42,7 +40,6 @@ const GameLeftStatusPanel = ({
             <div className="turn-side-time-label">남은 시간</div>
             <div className={`turn-side-time ${remainingSeconds <= 10 ? 'danger' : ''}`}>{formatSeconds(remainingSeconds)}</div>
             <div className="turn-side-sub">선공: {firstTurnUserId}</div>
-            <div className="turn-side-sub">목숨: 나 {myLives} / 상대 {opponentLives}</div>
             <button type="button" className="sound-toggle-btn" onClick={onToggleWarningSound}>
                 경고음 {warningSoundEnabled ? 'ON' : 'OFF'}
             </button>

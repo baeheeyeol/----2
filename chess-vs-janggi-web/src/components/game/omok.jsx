@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import GameResultBanner from '../shared/game-result-banner';
 import './omok.css';
 
+
 const SIZE = 15;
 
 const createBoard = () => Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => null));
@@ -103,6 +104,23 @@ const Omok = ({ room, user, onUpdateRoomSettings }) => {
         });
     };
 
+    const handleExitToRoomLobby = () => {
+        onUpdateRoomSettings?.({
+            p1Ready: false,
+            p2Ready: false,
+            gameSetup: {
+                started: false,
+                firstTurn: null,
+                turnSide: null,
+                winner: null,
+                winnerReason: null,
+                battleBoard: null,
+                p1Ready: false,
+                p2Ready: false,
+            },
+        });
+    };
+
     const winnerId = gameSetup.winner === 'top' ? room?.p1 : gameSetup.winner === 'bottom' ? room?.p2 : null;
     const loserId = gameSetup.winner === 'top' ? room?.p2 : gameSetup.winner === 'bottom' ? room?.p1 : null;
 
@@ -134,7 +152,12 @@ const Omok = ({ room, user, onUpdateRoomSettings }) => {
                 )}
             </div>
 
-            <GameResultBanner isVisible={!!gameSetup.winner} winnerId={winnerId} loserId={loserId} reason={gameSetup.winnerReason === 'connect5' ? '오목 완성' : ''} />
+            <GameResultBanner
+                isVisible={!!gameSetup.winner}
+                winnerId={winnerId}
+                loserId={loserId}
+                onExit={handleExitToRoomLobby}
+            />
         </div>
     );
 };

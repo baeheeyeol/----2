@@ -28,6 +28,11 @@
   color: var(--text-main);
 }
 
+.profile-stats strong {
+  color: var(--point-blue);
+  font-weight: 800;
+}
+
 .btn-detail {
   margin-top: 5px;
   background: transparent;
@@ -134,7 +139,7 @@
   font-size: 15px;
   color: var(--text-main);
   scrollbar-width: thin;
-  scrollbar-color: #aab6c5 #e9eef5;
+  scrollbar-color: var(--border-color) var(--bg-dark-depth-2);
 }
 
 .chat-line {
@@ -168,7 +173,7 @@
 .chat-input-form input {
   width: 100%;
   padding: 9px;
-  background-color: #ffffff;
+  background-color: var(--bg-dark-depth-2);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--text-main);
