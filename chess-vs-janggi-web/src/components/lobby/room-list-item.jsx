@@ -1,6 +1,8 @@
 import React from 'react';
 
 const RoomListItem = ({ room, onJoin }) => {
+    const isBotRoom = !!room.isBotRoom;
+    const botLabel = `BOT Lv.${Number.isFinite(Number(room.botLevel)) ? Number(room.botLevel) : 2}`;
     // 상태에 따른 색상 클래스 결정
     const statusClass = room.status === 'WAITING' ? 'waiting' : 'playing';
     const statusText = room.status === 'WAITING' ? '대기중' : '게임중';
@@ -48,7 +50,7 @@ const RoomListItem = ({ room, onJoin }) => {
                 <div className="player-display">
                     <span> {room.p1}</span>
                     <span className="vs-split">vs</span>
-                    <span> {room.p2 || '빈자리'}</span>
+                    <span> {isBotRoom ? botLabel : (room.p2 || '빈자리')}</span>
                 </div>
 
                 {/* 대기중이고 빈자리가 있을 때만 입장 버튼 활성화 */}

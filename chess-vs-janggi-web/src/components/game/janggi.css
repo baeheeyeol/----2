@@ -50,6 +50,8 @@
   cursor: pointer;
   padding: 0;
   position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .janggi-point.palace {

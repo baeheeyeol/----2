@@ -112,6 +112,10 @@
 
 .chat-tab {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: transparent;
   border: none;
   padding: 10px;
@@ -183,4 +187,12 @@
 
 .chat-input-form input:focus {
   border-color: var(--point-blue);
+}
+
+.chat-tab-unread {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+  background-color: var(--point-red);
 }

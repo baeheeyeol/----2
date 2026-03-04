@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import ChatWindow from './chat-window';
 import RoomCreateModal from './room-create-modal';
 import socket from '../../socket';
+import { showAppAlert, showAppChoice, showAppConfirm } from '../../utils/app-alert';
+import { emitSocketEvent } from '@/socket/socket-emit';
+import { SOCKET_EVENTS, validateSocketPayload } from '@/socket/socket-contract';
 import './side-panel.css';
 
 const QUICK_START_TITLES = [
@@ -44,16 +47,17 @@ const SidePanel = ({ user, currentRoomId }) => {
     const [rooms, setRooms] = useState([]);
 
     useEffect(() => {
-        socket.emit('request_room_list');
+        socket.emit(SOCKET_EVENTS.REQUEST_ROOM_LIST);
 
         const handleRoomList = (updatedRooms) => {
+            if (!validateSocketPayload(SOCKET_EVENTS.ROOM_LIST, updatedRooms)) return;
             setRooms(Array.isArray(updatedRooms) ? updatedRooms : []);
         };
 
-        socket.on('room_list', handleRoomList);
+        socket.on(SOCKET_EVENTS.ROOM_LIST, handleRoomList);
 
         return () => {
-            socket.off('room_list', handleRoomList);
+            socket.off(SOCKET_EVENTS.ROOM_LIST, handleRoomList);
         };
     }, []);
 
@@ -63,27 +67,52 @@ const SidePanel = ({ user, currentRoomId }) => {
     };
 
     const handleCreateRoom = () => {
-        if (!user) return alert('로그인이 필요합니다.');
+        if (!user) return showAppAlert('로그인이 필요합니다.');
         setIsModalOpen(true); // 모달 열기
     };
 
     const handleRoomSubmit = (data) => {
         // 실제 서버에 소켓으로 방 생성 이벤트 전송
-        socket.emit('create_room', {
+        emitSocketEvent(socket, SOCKET_EVENTS.CREATE_ROOM, {
             ...data,
             creator_id: user.id
         });
         setIsModalOpen(false); // 생성 후 모달 닫기
     };
 
-    const handleQuickStart = () => {
-        if (!user) return alert('로그인이 필요합니다.');
+    const handleQuickStart = async () => {
+        if (!user) return showAppAlert('로그인이 필요합니다.');
+
+        const wantsBotQuickStart = await showAppConfirm('빠른 시작을 봇전으로 시작할까요?', {
+            confirmText: '봇전',
+            cancelText: '일반전',
+        });
+        if (wantsBotQuickStart) {
+            const selectedLevel = await showAppChoice('봇 난이도를 선택해주세요.', {
+                choices: [
+                    { label: '난이도 1 (랜덤)', value: 1 },
+                    { label: '난이도 2 (그리디)', value: 2 },
+                    { label: '난이도 3 (미니맥스)', value: 3 },
+                ],
+                cancelText: '취소',
+            });
+            if (selectedLevel === null) return;
+
+            emitSocketEvent(socket, SOCKET_EVENTS.CREATE_ROOM, {
+                roomTitle: `${createQuickStartTitle()} (BOT Lv.${selectedLevel})`,
+                roomRule: '자율선택',
+                creator_id: user.id,
+                isBotRoom: true,
+                botLevel: selectedLevel,
+            });
+            return;
+        }
 
         const pickCandidateRooms = (roomList) => {
             return (Array.isArray(roomList) ? roomList : []).filter((room) => {
                 if (!room || room.id === currentRoomId) return false;
                 const status = String(room.status || '').toUpperCase();
-                return status !== 'PLAYING' && !room.isPrivate;
+                return status !== 'PLAYING' && !room.isPrivate && !room.p2;
             });
         };
 
@@ -91,14 +120,15 @@ const SidePanel = ({ user, currentRoomId }) => {
             const candidateRooms = pickCandidateRooms(roomList);
             if (candidateRooms.length > 0) {
                 const randomRoom = candidateRooms[Math.floor(Math.random() * candidateRooms.length)];
-                socket.emit('join_room', { roomId: randomRoom.id });
+                emitSocketEvent(socket, SOCKET_EVENTS.JOIN_ROOM, { roomId: randomRoom.id });
                 return;
             }
 
-            socket.emit('create_room', {
+            emitSocketEvent(socket, SOCKET_EVENTS.CREATE_ROOM, {
                 roomTitle: createQuickStartTitle(),
                 roomRule: '자율선택',
                 creator_id: user.id,
+                isBotRoom: false,
             });
         };
 
@@ -106,17 +136,21 @@ const SidePanel = ({ user, currentRoomId }) => {
         const handleRoomListOnce = (updatedRooms) => {
             if (handled) return;
             handled = true;
+            if (!validateSocketPayload(SOCKET_EVENTS.ROOM_LIST, updatedRooms)) {
+                tryQuickStart(rooms);
+                return;
+            }
             setRooms(Array.isArray(updatedRooms) ? updatedRooms : []);
             tryQuickStart(updatedRooms);
         };
 
-        socket.once('room_list', handleRoomListOnce);
-        socket.emit('request_room_list');
+        socket.once(SOCKET_EVENTS.ROOM_LIST, handleRoomListOnce);
+        socket.emit(SOCKET_EVENTS.REQUEST_ROOM_LIST);
 
         window.setTimeout(() => {
             if (handled) return;
             handled = true;
-            socket.off('room_list', handleRoomListOnce);
+            socket.off(SOCKET_EVENTS.ROOM_LIST, handleRoomListOnce);
             tryQuickStart(rooms);
         }, 300);
     };

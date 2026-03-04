@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './room-create-modal.css';
+import { showAppAlert } from '../../utils/app-alert';
 
 const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
     // 1. 폼 상태 관리: 모달은 오직 '입력값'만 관리합니다.
@@ -7,21 +8,23 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
         roomTitle: '',
         roomRule: '자율선택',
         isPrivate: false,
-        roomPassword: ''
+        roomPassword: '',
+        isBotRoom: false,
+        botLevel: 2,
     });
 
     if (!isOpen) return null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!roomData.roomTitle.trim()) return alert('방 제목을 입력해주세요.');
-        if (roomData.isPrivate && !roomData.roomPassword.trim()) return alert('비공개 방 비밀번호를 입력해주세요.');
+        if (!roomData.roomTitle.trim()) return showAppAlert('방 제목을 입력해주세요.');
+        if (roomData.isPrivate && !roomData.roomPassword.trim()) return showAppAlert('비공개 방 비밀번호를 입력해주세요.');
 
         // 부모가 전달해준 onCreate 함수에 현재 입력값만 넘깁니다.
         onCreate(roomData);
 
         // 초기화 (다음 번에 열릴 때를 대비)
-        setRoomData({ roomTitle: '', roomRule: '자율선택', isPrivate: false, roomPassword: '' });
+        setRoomData({ roomTitle: '', roomRule: '자율선택', isPrivate: false, roomPassword: '', isBotRoom: false, botLevel: 2 });
     };
 
     return (
@@ -64,6 +67,33 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
                             />
                             비공개 방 설정
                         </label>
+                    </div>
+
+                    <div className="form-group check-group">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={roomData.isBotRoom}
+                                onChange={(e) => setRoomData({ ...roomData, isBotRoom: e.target.checked, botLevel: 2 })}
+                            />
+                            봇전
+                        </label>
+                        {roomData.isBotRoom && (
+                            <>
+                                <div className="form-group">
+                                    <label>봇 난이도</label>
+                                    <select
+                                        value={roomData.botLevel}
+                                        onChange={(e) => setRoomData({ ...roomData, botLevel: Number(e.target.value) })}
+                                    >
+                                        <option value={1}>난이도 1 (랜덤)</option>
+                                        <option value={2}>난이도 2 (그리디)</option>
+                                        <option value={3}>난이도 3 (미니맥스)</option>
+                                    </select>
+                                </div>
+                                <div className="form-helper">상대 슬롯이 BOT으로 고정됩니다.</div>
+                            </>
+                        )}
                     </div>
 
                     {/* 비밀번호 입력 (비공개 시에만 표시) */}

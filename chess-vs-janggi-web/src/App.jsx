@@ -1,37 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
-import LobbyHeader from './components/lobby/lobby-header';
-import RoomList from './components/lobby/room-list';
-import RoomPage from './pages/room-page';
-import GameView from './pages/game-view';
-import SidePanel from './components/lobby/side-panel';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import LobbyHeader from '@/components/lobby/lobby-header';
+import RoomList from '@/components/lobby/room-list';
+import RoomPage from '@/pages/room-page';
+import GameView from '@/pages/game-view';
+import SidePanel from '@/components/lobby/side-panel';
+import MobileLobbyDrawer from '@/components/lobby/mobile-lobby-drawer';
+import AppAlertModal from '@/components/shared/app-alert-modal';
+import { showAppAlert } from '@/utils/app-alert';
+import { useStoredUser, getStoredUser, STORAGE_KEY } from '@/hooks/useStoredUser';
+import { useThemeMode } from '@/hooks/useThemeMode';
+import { useAlertQueue } from '@/hooks/useAlertQueue';
+import { useDelayedGameView } from '@/hooks/useDelayedGameView';
+import { useSocketSession } from '@/hooks/useSocketSession';
+import { emitSocketEvent } from '@/socket/socket-emit';
+import { SOCKET_EVENTS } from '@/socket/socket-contract';
 // [중요] 서버 파일이 아니라, src 폴더 내의 설정 파일을 가져옵니다.
-import socket from './socket';
-import './App.css';
-
-const STORAGE_KEY = 'cj-user-info';
-const THEME_STORAGE_KEY = 'cj-theme-mode';
-
-const getStoredUser = () => {
-  try {
-    const savedUser = localStorage.getItem(STORAGE_KEY);
-    return savedUser ? JSON.parse(savedUser) : null;
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
-    return null;
-  }
-};
+import socket from '@/socket';
+import '@/App.css';
 
 function App() {
-  // 1. 초기 상태 설정 
-  const [user, setUser] = useState(() => getStoredUser());
-  const [themeMode, setThemeMode] = useState(() => {
-    const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
-    return savedMode === 'dark' ? 'dark' : 'light';
-  });
+  // 1. 초기 상태 설정
+  const { user, persistUser, clearUser } = useStoredUser();
+  const { themeMode, toggleTheme } = useThemeMode();
+  const { alertQueue, dequeueAlert, resolveAlert } = useAlertQueue();
 
   // 방정보
   const [currentRoom, setCurrentRoom] = useState(null);
-  const [isGameViewVisible, setIsGameViewVisible] = useState(false);
+  const isGameViewVisible = useDelayedGameView(currentRoom);
   const [forfeitResult, setForfeitResult] = useState(null);
   const isGameStarted = currentRoom?.status === 'PLAYING';
 
@@ -53,159 +48,26 @@ function App() {
     }
   }, [user]);
 
-  const forceLogoutToMain = (message) => {
+  const forceLogoutToMain = useCallback((message) => {
     if (sessionAlertLockRef.current) return;
     sessionAlertLockRef.current = true;
 
     setCurrentRoom(null);
-    setIsGameViewVisible(false);
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
+    clearUser();
 
     if (message) {
-      alert(message);
+      showAppAlert(message);
     }
-  };
+  }, [clearUser]);
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', themeMode);
-    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
-  }, [themeMode]);
-
-  useEffect(() => {
-    let enterTimer;
-
-    if (!currentRoom) {
-      setIsGameViewVisible(false);
-      return;
-    }
-
-    if (currentRoom.status === 'PLAYING') {
-      enterTimer = setTimeout(() => {
-        setIsGameViewVisible(true);
-      }, 5000);
-    } else {
-      setIsGameViewVisible(false);
-    }
-
-    return () => {
-      if (enterTimer) {
-        clearTimeout(enterTimer);
-      }
-    };
-  }, [currentRoom?.id, currentRoom?.status]);
-
-  // [핵심] 소켓 이벤트 리스너 등록 (앱이 켜질 때 한 번만 실행)
-  useEffect(() => {
-    // 초기 소켓 연결 
-    socket.connect();
-
-    socket.on('connect', () => {
-      const storedUser = getStoredUser();
-      if (storedUser?.id) {
-        socket.emit('login', { userId: storedUser.id });
-      }
-    });
-
-    // 서버로부터 로그인 성공 응답이 오면 실행
-    socket.on('login_success', (userInfo) => {
-      setUser(userInfo);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(userInfo));
-    });
-
-    socket.on('user_profile_updated', (profile) => {
-      if (!profile?.id) return;
-
-      setUser((prev) => {
-        if (!prev || prev.id !== profile.id) return prev;
-        const nextUser = { ...prev, ...profile };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-        return nextUser;
-      });
-    });
-
-    // 서버로부터 에러 응답이 오면 실행
-    socket.on('login_error', (data) => {
-      forceLogoutToMain(data.message || '세션이 만료되었습니다. 다시 로그인해주세요.');
-    });
-
-    socket.on('disconnect', (reason) => {
-      if (!userRef.current) return;
-      forceLogoutToMain(`세션 연결이 끊어졌습니다. (${reason})\n메인 화면으로 이동합니다.`);
-    });
-
-    // 방 생성 성공 시 실행
-    socket.on('create_room_success', (newRoom) => {
-      setCurrentRoom(newRoom); // 이 한 줄로 화면이 전환됩니다.
-    });
-
-    // 방 생성 실패 시 실행
-    socket.on('create_room_error', (data) => {
-      alert(data.message);
-    });
-
-    // 방 목록에서 입장 성공했을 때
-    socket.on('join_room_success', (room) => {
-      setCurrentRoom(room);
-    });
-
-    socket.on('join_room_error', (data) => {
-      alert(data.message);
-    });
-
-    socket.on('update_room_settings_error', (data) => {
-      alert(data.message);
-    });
-
-    // 방 나가기 성공 시 실행
-    socket.on('leave_room_success', () => {
-      setCurrentRoom(null);
-    });
-
-    socket.on('room_closed', (data) => {
-      setCurrentRoom(null);
-      if (data?.message) {
-        alert(data.message);
-      }
-    });
-
-    // 방 정보 업데이트 시 실행 (예: 상대가 나갔을 때)
-    socket.on('room_update', (updatedRoom) => {
-      // [수정됨] 여기서 그냥 currentRoom을 쓰면 초기값(null)만 잡힙니다.
-      // Ref를 통해 현재 최신 방 정보를 가져와서 비교해야 합니다.
-      const current = roomRef.current;
-      if (current && updatedRoom.id === current.id) {
-        setCurrentRoom(updatedRoom);
-      }
-    });
-
-    socket.on('forfeit_result', (payload) => {
-      if (!payload?.winnerId || !payload?.loserId) return;
-      setForfeitResult(payload);
-      window.setTimeout(() => {
-        setForfeitResult((prev) => (prev === payload ? null : prev));
-      }, 2200);
-    });
-
-    // 컴포넌트가 사라질 때 리스너 정리 (메모리 누수 방지)
-    return () => {
-      socket.off('login_success');
-      socket.off('user_profile_updated');
-      socket.off('login_error');
-      socket.off('connect');
-      socket.off('room_list');
-      socket.off('create_room_success');
-      socket.off('create_room_error');
-      socket.off('join_room_success');
-      socket.off('join_room_error');
-      socket.off('update_room_settings_error');
-      socket.off('leave_room_success');
-      socket.off('room_closed');
-      socket.off('room_update');
-      socket.off('forfeit_result');
-      socket.off('disconnect');
-    };
-  }, []); // 의존성 배열 비움 (한 번만 실행)
+  useSocketSession({
+    persistUser,
+    setCurrentRoom,
+    setForfeitResult,
+    userRef,
+    roomRef,
+    forceLogoutToMain,
+  });
 
   useEffect(() => {
     const verifyStoredSession = () => {
@@ -242,7 +104,7 @@ function App() {
   }, []);
 
   // 2. 로그인 요청 핸들러
-  const handleLogin = (id, pw) => {
+  const handleLogin = (id) => {
     if (!id) return;
 
     if (!socket.connected) {
@@ -250,20 +112,19 @@ function App() {
     }
 
     // 서버로 '나 로그인 할래' 데이터 전송
-    socket.emit('login', { userId: id.trim() });
+    emitSocketEvent(socket, SOCKET_EVENTS.LOGIN, { userId: id.trim() });
   };
 
   // 3. 로그아웃 핸들러
   const handleLogout = () => {
-    socket.emit('logout');
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
+    socket.emit(SOCKET_EVENTS.LOGOUT);
+    clearUser();
   };
 
   // 3. 방 나가기 핸들러
   const handleLeaveRoom = () => {
     if (currentRoom) {
-      socket.emit('leave_room', { roomId: currentRoom.id, userId: user.id });
+      emitSocketEvent(socket, SOCKET_EVENTS.LEAVE_ROOM, { roomId: currentRoom.id, userId: user.id }, { silent: true });
       setCurrentRoom(null); // 다시 로비로 이동
     }
   };
@@ -272,7 +133,7 @@ function App() {
     const targetRoom = roomRef.current;
     if (!targetRoom?.id) return;
 
-    socket.emit('update_room_settings', {
+    emitSocketEvent(socket, SOCKET_EVENTS.UPDATE_ROOM_SETTINGS, {
       roomId: targetRoom.id,
       updates
     });
@@ -287,14 +148,14 @@ function App() {
 
       // 1. 방 정보 수정 (방 나가기 처리) 요청을 먼저 보냄
       if (targetRoom && targetUser) {
-        socket.emit('leave_room', { roomId: targetRoom.id, userId: targetUser.id });
+        emitSocketEvent(socket, SOCKET_EVENTS.LEAVE_ROOM, { roomId: targetRoom.id, userId: targetUser.id }, { silent: true });
       }
 
       // 2. 그 다음 연결을 끊음 (순서 중요)
       socket.disconnect();
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', handleBeforeUnload); 
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -302,13 +163,18 @@ function App() {
   }, []); // Ref를 쓰므로 의존성 배열을 비워도 항상 최신값을 참조함 (리스너 재등록 방지)
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${user && currentRoom ? 'mobile-header-hidden' : ''}`}>
       <LobbyHeader
+        // 로그인한 사용자 정보(없으면 비로그인 UI)
         user={user}
+        // 로그인 요청 콜백(id 전달)
         onLogin={handleLogin}
+        // 로그아웃 처리 콜백
         onLogout={handleLogout}
+        // 현재 테마 모드(light/dark)
         themeMode={themeMode}
-        onToggleTheme={() => setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+        // 테마 토글 핸들러
+        onToggleTheme={toggleTheme}
       />
 
       <main className="main-content">
@@ -316,18 +182,26 @@ function App() {
           isGameStarted && isGameViewVisible ? (
             <section className="game-section">
               <GameView
+                // 현재 입장한 방 메타/설정 정보
                 room={currentRoom}
+                // 현재 사용자 정보
                 user={user}
+                // 게임/방에서 나가기 콜백
                 onLeave={handleLeaveRoom}
+                // 방 옵션 변경 요청 콜백
                 onUpdateRoomSettings={handleUpdateRoomSettings}
               />
             </section>
           ) : (
             <section className="room-list-section">
               <RoomPage
+                // 현재 입장한 방 메타/설정 정보
                 room={currentRoom}
+                // 현재 사용자 정보
                 user={user}
+                // 방 나가기 콜백
                 onLeave={handleLeaveRoom}
+                // 방 옵션 변경 요청 콜백
                 onUpdateRoomSettings={handleUpdateRoomSettings}
               />
             </section>
@@ -339,10 +213,14 @@ function App() {
         )}
 
         <aside className="side-panel-section">
+          {/* user: 사용자 정보, currentRoomId: 현재 방 ID(없으면 undefined) */}
           <SidePanel user={user} currentRoomId={currentRoom?.id} />
         </aside>
 
       </main>
+
+      {/* user: 사용자 정보, currentRoomId: 현재 방 ID, onLogout: 로그아웃 콜백 */}
+      <MobileLobbyDrawer user={user} currentRoomId={currentRoom?.id} onLogout={handleLogout} />
 
       {forfeitResult && (
         <div className="forfeit-result-overlay" role="dialog" aria-modal="true" aria-live="polite">
@@ -354,6 +232,22 @@ function App() {
           </div>
         </div>
       )}
+
+      <AppAlertModal
+        // 모달 오픈 여부(알림 큐에 데이터가 있으면 true)
+        isOpen={alertQueue.length > 0}
+        // 현재 표시할 알림 메시지(큐의 첫 항목)
+        message={alertQueue[0]?.message || ''}
+        mode={alertQueue[0]?.kind || 'alert'}
+        confirmText={alertQueue[0]?.confirmText || '확인'}
+        cancelText={alertQueue[0]?.cancelText || '취소'}
+        choices={alertQueue[0]?.choices || []}
+        // 확인 버튼 클릭 시 큐에서 한 건 제거
+        onClose={dequeueAlert}
+        onConfirm={() => resolveAlert(true)}
+        onCancel={() => resolveAlert(false)}
+        onChoice={(value) => resolveAlert(true, value)}
+      />
     </div>
   );
 }

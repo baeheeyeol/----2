@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'; // ✅ 정답
 import './lobby-header.css';
 import socket from '../../socket'; // 경로 확인 필요
+import { SOCKET_EVENTS } from '@/socket/socket-contract';
 
 const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme }) => {
     // 로컬 상태: 입력 필드 관리
@@ -16,11 +17,11 @@ const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme }) => {
 
     // 소켓 접속자수 가져오기
     useEffect(() => {
-        socket.on('user_count', (count) => {
+        socket.on(SOCKET_EVENTS.USER_COUNT, (count) => {
             setUserCount(count);
         });
         return () => {
-            socket.off('user_count');
+            socket.off(SOCKET_EVENTS.USER_COUNT);
         };
     }, []);
 
@@ -29,12 +30,17 @@ const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme }) => {
             {/* 1. 좌측: 로고 및 접속자 정보 */}
             <div className="header-left">
                 <h1 className="logo">♟️ Chess vs Janggi 鿢</h1>
-                <span className="user-count">접속자: <span className="highlight">{userCount}</span>명</span>
+                <div className="header-left-meta">
+                    <span className="user-count">접속자: <span className="highlight">{userCount}</span>명</span>
+                    <button type="button" className="btn-theme-toggle btn-theme-toggle-mobile" onClick={onToggleTheme}>
+                        {themeMode === 'dark' ? '☀️ 라이트' : '🌙 다크'}
+                    </button>
+                </div>
             </div>
 
             {/* 2. 우측: 로그인 상태에 따른 분기 처리 */}
             <div className="header-right">
-                <button type="button" className="btn-theme-toggle" onClick={onToggleTheme}>
+                <button type="button" className="btn-theme-toggle btn-theme-toggle-desktop" onClick={onToggleTheme}>
                     {themeMode === 'dark' ? '☀️ 라이트' : '🌙 다크'}
                 </button>
                 {user ? (

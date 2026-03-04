@@ -342,3 +342,156 @@ button:disabled {
     font-style: italic;
     margin-right: auto; /* 왼쪽으로 밀기 */
 }
+
+@media (max-width: 900px) {
+    .room-page-container {
+        align-items: flex-start;
+        padding: 10px 0;
+        overflow-y: auto;
+    }
+
+    .game-setup-card {
+        border-radius: 10px;
+        padding: 14px;
+        gap: 14px;
+        box-shadow: none;
+    }
+
+    .room-title {
+        font-size: 1.15rem;
+    }
+
+    .player-vs-section {
+        gap: 10px;
+        padding: 8px 0;
+    }
+
+    .player-box {
+        padding: 12px;
+        max-width: none;
+    }
+
+    .faction-icon {
+        font-size: 2.6rem;
+        margin-bottom: 8px;
+    }
+
+    .player-name {
+        font-size: 1.05rem;
+    }
+
+    .game-options-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 640px) {
+    .room-page-container {
+        align-items: stretch;
+        padding: 0;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .game-setup-card {
+        padding: 8px 10px;
+        gap: 8px;
+        height: 100%;
+        min-height: 0;
+        max-height: 100%;
+        border-radius: 0;
+        overflow: hidden;
+    }
+
+    .card-header {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding-bottom: 6px;
+    }
+
+    .room-title {
+        width: 100%;
+        font-size: 1rem;
+    }
+
+    .player-vs-section {
+        flex-direction: row;
+        gap: 6px;
+        padding: 4px 0;
+    }
+
+    .player-box {
+        padding: 8px;
+        min-width: 0;
+        flex: 1 1 0;
+    }
+
+    .faction-icon {
+        font-size: 2rem;
+        margin-bottom: 4px;
+    }
+
+    .player-name {
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+
+    .ready-status {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+    }
+
+    .faction-label,
+    .piece-color-label {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+    }
+
+    .vs-divider {
+        font-size: 1rem;
+        padding: 0;
+    }
+
+    .game-options-section {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .option-group {
+        gap: 6px;
+    }
+
+    .option-group label {
+        font-size: 0.82rem;
+    }
+
+    .faction-select {
+        margin-top: 6px;
+        padding: 3px 6px;
+        font-size: 0.82rem;
+    }
+
+    .common-select,
+    button {
+        font-size: 0.84rem;
+        padding: 8px 10px;
+    }
+
+    .card-footer {
+        flex-wrap: wrap;
+        justify-content: stretch;
+        gap: 6px;
+        padding-top: 8px;
+    }
+
+    .card-footer > button,
+    .card-footer > .game-entered-banner,
+    .card-footer > .random-sync-banner {
+        width: 100%;
+    }
+}

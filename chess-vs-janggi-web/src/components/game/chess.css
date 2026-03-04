@@ -204,6 +204,8 @@
   cursor: pointer;
   appearance: none;
   position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chess-cell.light {
@@ -524,6 +526,7 @@
     0 0 1px rgba(255, 255, 255, 0.9),
     0 0 2px rgba(0, 0, 0, 0.85);
   -webkit-text-stroke: 0.45px rgba(0, 0, 0, 0.7);
+  touch-action: manipulation;
 }
 
 .captured-omok-stone {
@@ -750,5 +753,85 @@
   .chess-board {
     width: min(90vw, 720px);
     min-width: 320px;
+  }
+}
+
+@media (max-width: 900px) {
+  .chess-layout {
+    gap: 10px;
+  }
+
+  .turn-side-panel,
+  .piece-side-panel {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .turn-player-id {
+    font-size: 15px;
+  }
+
+  .turn-side-time {
+    font-size: clamp(18px, 6vw, 24px);
+    padding: 8px 6px;
+  }
+
+  .capture-area {
+    padding: 8px;
+    min-height: 0;
+  }
+
+  .rule-item {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 768px) {
+  .chess-board {
+    width: min(94vw, 560px);
+    min-width: 280px;
+  }
+
+  .turn-side-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .turn-side-title,
+  .turn-vs,
+  .turn-side-sub,
+  .sound-toggle-btn {
+    grid-column: 1 / -1;
+  }
+
+  .turn-player-card {
+    padding: 8px 6px;
+  }
+
+  .piece-side-panel {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .piece-side-panel .capture-area[aria-label='규칙'] {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .chess-board {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .chess-piece {
+    font-size: clamp(16px, 5.4vw, 24px);
+  }
+
+  .chess-piece.janggi-token-piece {
+    font-size: clamp(14px, 4.2vw, 20px);
   }
 }

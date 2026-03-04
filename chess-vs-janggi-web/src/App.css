@@ -82,3 +82,49 @@ h2 {
   font-weight: 900;
   color: var(--point-gold);
 }
+
+@media (max-width: 1024px) {
+  .app-container.mobile-header-hidden .lobby-header {
+    display: none;
+  }
+
+  .main-content {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+
+  .room-list-section,
+  .game-section {
+    flex: 1;
+    border-right: none;
+    padding: 16px;
+  }
+
+  .side-panel-section {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    height: 100dvh;
+  }
+
+  .main-content {
+    padding-bottom: calc(74px + env(safe-area-inset-bottom));
+  }
+
+  .room-list-section,
+  .game-section {
+    padding: 10px;
+  }
+
+  .forfeit-result-modal {
+    min-width: 0;
+    width: min(92vw, 320px);
+    padding: 14px 16px;
+  }
+
+  .forfeit-result-body {
+    font-size: 22px;
+  }
+}

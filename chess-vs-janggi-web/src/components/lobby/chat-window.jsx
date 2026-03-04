@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './side-panel.css';
 import socket from '../../socket';
+import { emitSocketEvent } from '@/socket/socket-emit';
+import { SOCKET_EVENTS } from '@/socket/socket-contract';
 
 // Props로 currentRoomId를 받아야 방 채팅 여부를 판단 가능
-const ChatWindow = ({ userName, currentRoomId }) => {
+const ChatWindow = ({ userName, currentRoomId, isVisible = true, onRoomUnreadChange }) => {
     // 탭 상태: 'GLOBAL' | 'ROOM'
     const [activeTab, setActiveTab] = useState('GLOBAL');
 
     // 메시지 상태 분리
     const [globalMessages, setGlobalMessages] = useState([]);
     const [roomMessages, setRoomMessages] = useState([]);
+    const [roomUnreadCount, setRoomUnreadCount] = useState(0);
 
     const [inputText, setInputText] = useState('');
     const messagesEndRef = useRef(null);
@@ -26,11 +29,22 @@ const ChatWindow = ({ userName, currentRoomId }) => {
         if (!currentRoomId) {
             setActiveTab('GLOBAL');
             setRoomMessages([]); // 선택사항: 방 나가면 이전 대화 지우기
+            setRoomUnreadCount(0);
         } else {
             // 방에 들어오면 자동으로 방 채팅 탭으로 전환 (UX 편의성)
             setActiveTab('ROOM');
         }
     }, [currentRoomId]);
+
+    useEffect(() => {
+        onRoomUnreadChange?.(roomUnreadCount);
+    }, [roomUnreadCount, onRoomUnreadChange]);
+
+    useEffect(() => {
+        if (activeTab === 'ROOM' && isVisible) {
+            setRoomUnreadCount(0);
+        }
+    }, [activeTab, isVisible]);
 
     // 소켓 이벤트 리스너 설정
     useEffect(() => {
@@ -42,6 +56,10 @@ const ChatWindow = ({ userName, currentRoomId }) => {
         // 방 채팅 수신
         const handleRoomMessage = (newMessage) => {
             setRoomMessages((prev) => [...prev, newMessage]);
+            const isMyMessage = newMessage?.user && newMessage.user === userName;
+            if (!(activeTab === 'ROOM' && isVisible) && !isMyMessage) {
+                setRoomUnreadCount((prev) => prev + 1);
+            }
         };
 
         const handlePlayerJoined = (payload) => {
@@ -56,18 +74,18 @@ const ChatWindow = ({ userName, currentRoomId }) => {
             setRoomMessages((prev) => [...prev, createSystemMessage(message)]);
         };
 
-        socket.on('receive_message', handleGlobalMessage);
-        socket.on('receive_room_message', handleRoomMessage);
-        socket.on('player_joined', handlePlayerJoined);
-        socket.on('player_left', handlePlayerLeft);
+        socket.on(SOCKET_EVENTS.RECEIVE_MESSAGE, handleGlobalMessage);
+        socket.on(SOCKET_EVENTS.RECEIVE_ROOM_MESSAGE, handleRoomMessage);
+        socket.on(SOCKET_EVENTS.PLAYER_JOINED, handlePlayerJoined);
+        socket.on(SOCKET_EVENTS.PLAYER_LEFT, handlePlayerLeft);
 
         return () => {
-            socket.off('receive_message', handleGlobalMessage);
-            socket.off('receive_room_message', handleRoomMessage);
-            socket.off('player_joined', handlePlayerJoined);
-            socket.off('player_left', handlePlayerLeft);
+            socket.off(SOCKET_EVENTS.RECEIVE_MESSAGE, handleGlobalMessage);
+            socket.off(SOCKET_EVENTS.RECEIVE_ROOM_MESSAGE, handleRoomMessage);
+            socket.off(SOCKET_EVENTS.PLAYER_JOINED, handlePlayerJoined);
+            socket.off(SOCKET_EVENTS.PLAYER_LEFT, handlePlayerLeft);
         };
-    }, []);
+    }, [activeTab, isVisible, userName]);
 
     // 스크롤 자동 이동 (메시지가 업데이트 될 때마다)
     useEffect(() => {
@@ -87,13 +105,13 @@ const ChatWindow = ({ userName, currentRoomId }) => {
         };
 
         if (activeTab === 'GLOBAL') {
-            socket.emit('send_message', messageData);
+            emitSocketEvent(socket, SOCKET_EVENTS.SEND_MESSAGE, messageData, { silent: true });
         } else if (activeTab === 'ROOM' && currentRoomId) {
             // 방 ID를 함께 전송해야 함
-            socket.emit('send_room_message', {
+            emitSocketEvent(socket, SOCKET_EVENTS.SEND_ROOM_MESSAGE, {
                 roomId: currentRoomId,
                 messageData
-            });
+            }, { silent: true });
         }
 
         setInputText('');
@@ -119,6 +137,7 @@ const ChatWindow = ({ userName, currentRoomId }) => {
                     style={{ opacity: currentRoomId ? 1 : 0.5, cursor: currentRoomId ? 'pointer' : 'not-allowed' }}
                 >
                     방 채팅
+                    {roomUnreadCount > 0 && <span className="chat-tab-unread" aria-label={`읽지 않은 메시지 ${roomUnreadCount}개`} />}
                 </button>
             </div>
 

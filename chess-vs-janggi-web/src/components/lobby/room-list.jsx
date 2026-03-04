@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import socket from '../../socket';
 import RoomListItem from './room-list-item';
+import { emitSocketEvent } from '@/socket/socket-emit';
+import { SOCKET_EVENTS, validateSocketPayload } from '@/socket/socket-contract';
 import './room-list.css';
 
 const RoomList = () => {
@@ -8,21 +10,22 @@ const RoomList = () => {
 
     useEffect(() => {
         // 1. 처음 마운트 시 현재 서버의 방 목록 요청
-        socket.emit('request_room_list');
+        socket.emit(SOCKET_EVENTS.REQUEST_ROOM_LIST);
 
         // 2. 서버에서 갱신된 방 목록 수신
-        socket.on('room_list', (updatedRooms) => {
+        socket.on(SOCKET_EVENTS.ROOM_LIST, (updatedRooms) => {
+            if (!validateSocketPayload(SOCKET_EVENTS.ROOM_LIST, updatedRooms)) return;
             setRooms(updatedRooms);
         });
 
 
         return () => {
-            socket.off('room_list');
+            socket.off(SOCKET_EVENTS.ROOM_LIST);
         };
     }, []);
 
     const handleJoinRoom = (roomId, roomPassword = '') => {
-        socket.emit('join_room', { roomId, roomPassword });
+        emitSocketEvent(socket, SOCKET_EVENTS.JOIN_ROOM, { roomId, roomPassword });
     };
 
     return (

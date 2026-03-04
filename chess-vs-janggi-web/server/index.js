@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { SOCKET_EVENTS, validateSocketPayload } from '../src/socket/socket-contract.js';
 
 const app = express();
 app.use(cors());
@@ -25,6 +26,14 @@ let userRecords = {}; // { userId: { wins, losses, games } }
 let rooms = []; 
 let roomPasswords = {}; // { roomId: password }
 // Room 구조: { id, title, p1, p1_socketId, p2, p2_socketId, status }
+
+const normalizeBotLevel = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 2;
+  return Math.min(3, Math.max(1, Math.floor(parsed)));
+};
+
+const getBotUserId = (level) => `[BOT_LV${normalizeBotLevel(level)}]`;
 
 const normalizeRoomRule = (rule) => {
   const ruleMap = {
@@ -115,7 +124,7 @@ const syncConnectedUserProfile = (userId) => {
 
   const profile = buildUserProfile(userId);
   connectedUsers[socketId] = profile;
-  io.to(socketId).emit('user_profile_updated', profile);
+  io.to(socketId).emit(SOCKET_EVENTS.USER_PROFILE_UPDATED, profile);
 };
 
 const resolvePlayerSides = (room) => {
@@ -151,6 +160,13 @@ const applyMatchResult = (room, winnerSide) => {
   syncConnectedUserProfile(loserId);
 };
 
+const emitSocketError = (socket, message, eventName = null) => {
+  socket.emit(SOCKET_EVENTS.SOCKET_ERROR, {
+    message,
+    event: eventName || undefined,
+  });
+};
+
 /**
  * [Helper] 유저가 방에서 나갈 때의 공통 처리 로직
  * - 방장(P1)이 나가면 방이 폭파됨.
@@ -175,12 +191,12 @@ const handleUserExitRoom = (socketId) => {
         const loserId = room.p1;
         const winnerSocketId = room.p2_socketId;
         if (winnerSocketId && io.sockets.sockets.has(winnerSocketId)) {
-          io.to(winnerSocketId).emit('forfeit_result', { winnerId, loserId });
+          io.to(winnerSocketId).emit(SOCKET_EVENTS.FORFEIT_RESULT, { winnerId, loserId });
         }
       }
 
       console.log(`[Room Deleted] Creator left: ${room.id}`);
-      io.to(room.id).emit('room_closed', {
+      io.to(room.id).emit(SOCKET_EVENTS.ROOM_CLOSED, {
         roomId: room.id,
         message: '방장이 방을 떠나 로비로 이동합니다.'
       });
@@ -200,10 +216,10 @@ const handleUserExitRoom = (socketId) => {
         const winnerId = room.p1;
         const loserId = room.p2;
         if (room.p1_socketId && io.sockets.sockets.has(room.p1_socketId)) {
-          io.to(room.p1_socketId).emit('forfeit_result', { winnerId, loserId });
+          io.to(room.p1_socketId).emit(SOCKET_EVENTS.FORFEIT_RESULT, { winnerId, loserId });
         }
         if (room.p2_socketId && io.sockets.sockets.has(room.p2_socketId)) {
-          io.to(room.p2_socketId).emit('forfeit_result', { winnerId, loserId });
+          io.to(room.p2_socketId).emit(SOCKET_EVENTS.FORFEIT_RESULT, { winnerId, loserId });
         }
       }
 
@@ -219,8 +235,8 @@ const handleUserExitRoom = (socketId) => {
       room.gameSetup = createDefaultGameSetup();
       
       // 해당 방에 있는 사람들에게 알림
-      io.to(room.id).emit('player_left', { user: leftUser });
-      io.to(room.id).emit('room_update', room);
+      io.to(room.id).emit(SOCKET_EVENTS.PLAYER_LEFT, { user: leftUser });
+      io.to(room.id).emit(SOCKET_EVENTS.ROOM_UPDATE, room);
       
       isRoomListChanged = true;
       return true; // 목록 유지
@@ -231,7 +247,7 @@ const handleUserExitRoom = (socketId) => {
 
   // 변경사항이 있으면 로비에 있는 모든 사람에게 방 목록 방송
   if (isRoomListChanged) {
-    io.emit('room_list', rooms);
+    io.emit(SOCKET_EVENTS.ROOM_LIST, rooms);
   }
 };
 
@@ -240,12 +256,22 @@ const handleUserExitRoom = (socketId) => {
 io.on('connection', (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
+  const onClientEvent = (eventName, handler) => {
+    socket.on(eventName, (payload) => {
+      if (!validateSocketPayload(eventName, payload)) {
+        emitSocketError(socket, '잘못된 요청 형식입니다.', eventName);
+        return;
+      }
+      handler(payload);
+    });
+  };
+
   // 1. 로그인 요청
-  socket.on('login', ({ userId }) => {
+  onClientEvent(SOCKET_EVENTS.LOGIN, ({ userId }) => {
     const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
 
     if (!normalizedUserId) {
-      socket.emit('login_error', { message: '유효한 ID를 입력해주세요.' });
+      socket.emit(SOCKET_EVENTS.LOGIN_ERROR, { message: '유효한 ID를 입력해주세요.' });
       return;
     }
 
@@ -254,7 +280,7 @@ io.on('connection', (socket) => {
     if (existingSocketId && existingSocketId !== socket.id) {
         // 실제 연결이 살아있는지 확인
         if (io.sockets.sockets.has(existingSocketId)) {
-            socket.emit('login_error', { message: '이미 접속 중인 ID입니다.' });
+            socket.emit(SOCKET_EVENTS.LOGIN_ERROR, { message: '이미 접속 중인 ID입니다.' });
             return;
         }
         delete userToSocketId[normalizedUserId];
@@ -266,24 +292,24 @@ io.on('connection', (socket) => {
     connectedUsers[socket.id] = userInfo;
     userToSocketId[normalizedUserId] = socket.id;
 
-    socket.emit('login_success', userInfo);
-    io.emit('user_count', Object.keys(connectedUsers).length);
+    socket.emit(SOCKET_EVENTS.LOGIN_SUCCESS, userInfo);
+    io.emit(SOCKET_EVENTS.USER_COUNT, Object.keys(connectedUsers).length);
   });
 
   // 2. 로비 채팅
-  socket.on('send_message', (messageData) => {
-    io.emit('receive_message', messageData);
+  onClientEvent(SOCKET_EVENTS.SEND_MESSAGE, (messageData) => {
+    io.emit(SOCKET_EVENTS.RECEIVE_MESSAGE, messageData);
   });
 
   // 2-2. 인게임/대기실 채팅
-  socket.on('send_room_message', ({ roomId, messageData }) => {
+  onClientEvent(SOCKET_EVENTS.SEND_ROOM_MESSAGE, ({ roomId, messageData }) => {
     if (roomId && io.sockets.adapter.rooms.has(roomId)) {
-       io.to(roomId).emit('receive_room_message', messageData);
+       io.to(roomId).emit(SOCKET_EVENTS.RECEIVE_ROOM_MESSAGE, messageData);
     }
   });
 
   // 3. 연결 종료 (브라우저 닫음 등)
-  socket.on('disconnect', () => {
+  socket.on(SOCKET_EVENTS.DISCONNECT, () => {
     console.log(`User Disconnected: ${socket.id}`);
     
     // 유저 정보 삭제
@@ -297,11 +323,11 @@ io.on('connection', (socket) => {
     handleUserExitRoom(socket.id);
     
     // 접속자 수 갱신
-    io.emit('user_count', Object.keys(connectedUsers).length);
+    io.emit(SOCKET_EVENTS.USER_COUNT, Object.keys(connectedUsers).length);
   });
 
   // 4. 로그아웃 (버튼 클릭)
-  socket.on('logout', () => {
+  socket.on(SOCKET_EVENTS.LOGOUT, () => {
     const currentUser = connectedUsers[socket.id];
     if (currentUser) {
         delete userToSocketId[currentUser.id];
@@ -311,23 +337,30 @@ io.on('connection', (socket) => {
     // 방 처리 로직 실행 (중복 제거됨)
     handleUserExitRoom(socket.id);
 
-    io.emit('user_count', Object.keys(connectedUsers).length);
+    io.emit(SOCKET_EVENTS.USER_COUNT, Object.keys(connectedUsers).length);
   });
 
   // 5. 방 만들기
-  socket.on('create_room', (roomData) => {
+  onClientEvent(SOCKET_EVENTS.CREATE_ROOM, (roomData) => {
     const currentUser = connectedUsers[socket.id];
     if (!currentUser) {
-      socket.emit('create_room_error', { message: '로그인이 필요합니다.' });
+      socket.emit(SOCKET_EVENTS.CREATE_ROOM_ERROR, { message: '로그인이 필요합니다.' });
       return;
     }
     
+    const isBotRoom = !!roomData.isBotRoom;
+    const botLevel = normalizeBotLevel(roomData.botLevel);
+    const initialGameSetup = createDefaultGameSetup();
+    if (isBotRoom) {
+      initialGameSetup.p2Ready = true;
+    }
+
     const newRoom = {
       id: `room_${Date.now()}`,
       title: roomData.roomTitle || `${currentUser.id}님의 게임`, // 제목 없을 시 기본값
       p1: currentUser.id,
       p1_socketId: socket.id,
-      p2: null,
+      p2: isBotRoom ? getBotUserId(botLevel) : null,
       p2_socketId: null,
       status: 'WAITING',
       roomRule: normalizeRoomRule(roomData.roomRule),
@@ -340,9 +373,11 @@ io.on('connection', (socket) => {
       turnSeconds: Number.isFinite(Number(roomData.turnSeconds)) ? Math.min(600, Math.max(1, Number(roomData.turnSeconds))) : 60,
       randomTick: 0,
       p1Ready: false,
-      p2Ready: false,
+      p2Ready: isBotRoom,
+      isBotRoom,
+      botLevel,
       isPrivate: !!roomData.isPrivate,
-      gameSetup: createDefaultGameSetup()
+      gameSetup: initialGameSetup
     };
 
     if (newRoom.isPrivate) {
@@ -352,22 +387,22 @@ io.on('connection', (socket) => {
     rooms.push(newRoom);
     socket.join(newRoom.id);
     
-    io.emit('room_list', rooms);
-    socket.emit('create_room_success', newRoom);
+    io.emit(SOCKET_EVENTS.ROOM_LIST, rooms);
+    socket.emit(SOCKET_EVENTS.CREATE_ROOM_SUCCESS, newRoom);
   });
 
   // 6. 방 입장
-  socket.on('join_room', ({ roomId, roomPassword }) => { // 변수명 roomId로 통일
+  onClientEvent(SOCKET_EVENTS.JOIN_ROOM, ({ roomId, roomPassword }) => { // 변수명 roomId로 통일
     const currentUser = connectedUsers[socket.id];
     if (!currentUser) {
-      socket.emit('join_room_error', { message: '로그인이 필요합니다.' });
+      socket.emit(SOCKET_EVENTS.JOIN_ROOM_ERROR, { message: '로그인이 필요합니다.' });
       return;
     }
 
     const room = rooms.find(r => r.id === roomId);
     
     if (!room) {
-      socket.emit('join_room_error', { message: '존재하지 않는 방입니다.' });
+      socket.emit(SOCKET_EVENTS.JOIN_ROOM_ERROR, { message: '존재하지 않는 방입니다.' });
       return;
     }
 
@@ -375,7 +410,7 @@ io.on('connection', (socket) => {
       const expected = roomPasswords[room.id] || '';
       const provided = typeof roomPassword === 'string' ? roomPassword : '';
       if (!expected || expected !== provided) {
-        socket.emit('join_room_error', { message: '비밀번호가 올바르지 않습니다.' });
+        socket.emit(SOCKET_EVENTS.JOIN_ROOM_ERROR, { message: '비밀번호가 올바르지 않습니다.' });
         return;
       }
     }
@@ -390,34 +425,34 @@ io.on('connection', (socket) => {
       
       socket.join(room.id);
       
-      io.emit('room_list', rooms); // 로비 갱신
-      socket.emit('join_room_success', room); // 본인에게 알림
-      io.to(room.id).emit('room_update', room); // 방 참가자(P1/P2) 상세 정보 갱신
+      io.emit(SOCKET_EVENTS.ROOM_LIST, rooms); // 로비 갱신
+      socket.emit(SOCKET_EVENTS.JOIN_ROOM_SUCCESS, room); // 본인에게 알림
+      io.to(room.id).emit(SOCKET_EVENTS.ROOM_UPDATE, room); // 방 참가자(P1/P2) 상세 정보 갱신
       
       // 방에 있는 P1에게도 알림 (게임 시작 신호 등)
-      io.to(room.id).emit('player_joined', { p2: currentUser.id });
+      io.to(room.id).emit(SOCKET_EVENTS.PLAYER_JOINED, { p2: currentUser.id });
       
     } else {
-      socket.emit('join_room_error', { message: '방이 꽉 찼거나 게임 중입니다.' });
+      socket.emit(SOCKET_EVENTS.JOIN_ROOM_ERROR, { message: '방이 꽉 찼거나 게임 중입니다.' });
     }
   });
 
-  socket.on('update_room_settings', ({ roomId, updates }) => {
+  onClientEvent(SOCKET_EVENTS.UPDATE_ROOM_SETTINGS, ({ roomId, updates }) => {
     const currentUser = connectedUsers[socket.id];
     if (!currentUser) {
-      socket.emit('update_room_settings_error', { message: '로그인이 필요합니다.' });
+      socket.emit(SOCKET_EVENTS.UPDATE_ROOM_SETTINGS_ERROR, { message: '로그인이 필요합니다.' });
       return;
     }
 
     const room = rooms.find(r => r.id === roomId);
     if (!room) {
-      socket.emit('update_room_settings_error', { message: '존재하지 않는 방입니다.' });
+      socket.emit(SOCKET_EVENTS.UPDATE_ROOM_SETTINGS_ERROR, { message: '존재하지 않는 방입니다.' });
       return;
     }
 
     const isParticipant = room.p1_socketId === socket.id || room.p2_socketId === socket.id;
     if (!isParticipant) {
-      socket.emit('update_room_settings_error', { message: '방 참가자만 설정을 변경할 수 있습니다.' });
+      socket.emit(SOCKET_EVENTS.UPDATE_ROOM_SETTINGS_ERROR, { message: '방 참가자만 설정을 변경할 수 있습니다.' });
       return;
     }
 
@@ -428,7 +463,7 @@ io.on('connection', (socket) => {
     const setupModeSet = new Set(['formation', 'recommended', 'custom']);
 
     if (typeof updates !== 'object' || !updates) {
-      socket.emit('update_room_settings_error', { message: '잘못된 설정 요청입니다.' });
+      socket.emit(SOCKET_EVENTS.UPDATE_ROOM_SETTINGS_ERROR, { message: '잘못된 설정 요청입니다.' });
       return;
     }
 
@@ -600,22 +635,33 @@ io.on('connection', (socket) => {
       room.gameSetup = nextSetup;
     }
 
+    if (room.isBotRoom) {
+      room.p2 = getBotUserId(room.botLevel);
+      room.p2_socketId = null;
+      room.p2Ready = true;
+      room.gameSetup = {
+        ...(room.gameSetup || createDefaultGameSetup()),
+        p2Ready: true,
+      };
+    }
+
     const canStartGame = !!room.p1 && !!room.p2 && !!room.p1Ready && !!room.p2Ready;
     room.status = canStartGame ? 'PLAYING' : 'WAITING';
 
-    io.to(room.id).emit('room_update', room);
-    io.emit('room_list', rooms);
+    io.to(room.id).emit(SOCKET_EVENTS.ROOM_UPDATE, room);
+    io.emit(SOCKET_EVENTS.ROOM_LIST, rooms);
   });
 
   // 7. 방 나가기 (대기실/게임 도중 나가기 버튼)
-  socket.on('leave_room', ({ roomId }) => {
+  onClientEvent(SOCKET_EVENTS.LEAVE_ROOM, ({ roomId }) => {
     socket.leave(roomId);
+    socket.emit(SOCKET_EVENTS.LEAVE_ROOM_SUCCESS);
     handleUserExitRoom(socket.id);
   });
 
   // 8. 방 목록 요청 (로비 진입 시)
-  socket.on('request_room_list', () => {
-    socket.emit('room_list', rooms);
+  socket.on(SOCKET_EVENTS.REQUEST_ROOM_LIST, () => {
+    socket.emit(SOCKET_EVENTS.ROOM_LIST, rooms);
   });
 });
 

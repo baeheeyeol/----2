@@ -1,55 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import './room-page.css';
-
-// --- 상수 정의 (유지보수를 위해 별도 파일로 분리하는 것이 좋으나, 현재는 여기에 둡니다) ---
-const GAME_RULES = {
-    FREE: '자율선택',
-    RANDOM: '랜덤배정',
-    HOST: '방장선택',
-};
-
-const MAP_TYPES = {
-    CHESS: '체스판',
-    JANGGI: '장기판',
-    BADUK: '바둑판',
-};
-
-const FACTIONS = {
-    CHESS: { code: 'chess', icon: '♔', label: 'CHESS' },
-    JANGGI: { code: 'janggi', icon: '鿢', label: 'JANGGI' },
-    OMOK: { code: 'omok', icon: '⚪⚫', label: 'OMOK' },
-};
-
-const PIECE_COLORS = [
-    { code: 'white', label: 'WHITE' },
-    { code: 'black', label: 'BLACK' },
-    { code: 'red', label: 'RED' },
-    { code: 'blue', label: 'BLUE' },
-    { code: 'green', label: 'GREEN' },
-    { code: 'gold', label: 'GOLD' },
-    { code: 'purple', label: 'PURPLE' },
-];
-
-const OMOK_STONE_TARGET_OPTIONS = [6, 7, 8, 9, 10, 11, 12];
-
-const normalizeRule = (rule) => {
-    const ruleMap = {
-        auto: GAME_RULES.FREE,
-        AUTO: GAME_RULES.FREE,
-        FREE: GAME_RULES.FREE,
-        RANDOM: GAME_RULES.RANDOM,
-        HOST: GAME_RULES.HOST,
-        [GAME_RULES.FREE]: GAME_RULES.FREE,
-        [GAME_RULES.RANDOM]: GAME_RULES.RANDOM,
-        [GAME_RULES.HOST]: GAME_RULES.HOST,
-    };
-
-    return ruleMap[rule] || GAME_RULES.FREE;
-};
-
-const getFactionByCode = (factionCode, fallback = FACTIONS.CHESS) => {
-    return Object.values(FACTIONS).find(f => f.code === factionCode) || fallback;
-};
+import { FACTIONS, GAME_RULES, MAP_TYPES, OMOK_STONE_TARGET_OPTIONS, PIECE_COLORS } from '@/game/constants';
+import { useRoomSetup } from '@/hooks/useRoomSetup';
 
 const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
     if (!room || !user) {
@@ -71,239 +23,39 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
     const isP2Ready = !!room.p2Ready;
     const isCurrentUserReady = isHost ? isP1Ready : isP2Ready;
     const isHostSettingsDisabled = !isHost || isP1Ready || room.status === 'PLAYING';
-    const selectedRule = normalizeRule(room.roomRule);
-    const selectedMap = room.roomMap || MAP_TYPES.CHESS;
-    const p1Faction = getFactionByCode(room.p1Faction, FACTIONS.CHESS);
-    const p2Faction = getFactionByCode(room.p2Faction, FACTIONS.JANGGI);
-    const p1Color = room.p1Color || 'white';
-    const p2Color = room.p2Color || 'black';
-    const omokStoneTarget = Number.isFinite(Number(room.omokStoneTarget))
-        ? Math.min(12, Math.max(6, Math.floor(Number(room.omokStoneTarget))))
-        : 8;
-    const roomTurnSeconds = Number.isFinite(Number(room.turnSeconds)) ? Number(room.turnSeconds) : 60;
-    const [countdown, setCountdown] = useState(5);
-    const [ruleChanged, setRuleChanged] = useState(false);
-    const [mapChanged, setMapChanged] = useState(false);
-    const [turnSecondsInput, setTurnSecondsInput] = useState(String(roomTurnSeconds));
-    const [isDiceRolling, setIsDiceRolling] = useState(false);
-    const isFirstSyncRef = useRef(true);
-    const prevRuleRef = useRef(selectedRule);
-    const prevMapRef = useRef(selectedMap);
-    const prevRandomTickRef = useRef(room.randomTick || 0);
-    const diceRollTimerRef = useRef(null);
-
-    const triggerDiceRollEffect = () => {
-        if (diceRollTimerRef.current) {
-            clearTimeout(diceRollTimerRef.current);
-        }
-
-        setIsDiceRolling(true);
-        diceRollTimerRef.current = setTimeout(() => {
-            setIsDiceRolling(false);
-            diceRollTimerRef.current = null;
-        }, 800);
-    };
-
-    // 양쪽 준비완료시 5초 타이머 표기 이후 게임시작화면 전환
-    useEffect(() => {
-        let timerId;
-        if (isP1Ready && isP2Ready) {
-            setCountdown(5);
-            timerId = setInterval(() => {
-                setCountdown(prev => {
-                    if (prev <= 1) {
-                        clearInterval(timerId);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        } else {
-            setCountdown(5);
-        }
-        return () => {
-            clearInterval(timerId);
-
-        };
-    }, [isP1Ready, isP2Ready]);
-    // 룰이나 맵이 변경됐을 때 잠깐 배너 띄우기 (변경 감지)
-    useEffect(() => {
-        if (isFirstSyncRef.current) {
-            isFirstSyncRef.current = false;
-            prevRuleRef.current = selectedRule;
-            prevMapRef.current = selectedMap;
-            prevRandomTickRef.current = room.randomTick || 0;
-            return;
-        }
-
-        if (prevRuleRef.current !== selectedRule) {
-            setRuleChanged(true);
-            const timerId = setTimeout(() => setRuleChanged(false), 700);
-            prevRuleRef.current = selectedRule;
-            return () => clearTimeout(timerId);
-        }
-
-        prevRuleRef.current = selectedRule;
-    }, [selectedRule]);
-    // 룰이 랜덤일 때, 플레이어 진영이 변경되면 랜덤 배정 효과 실행
-    useEffect(() => {
-        if (isFirstSyncRef.current) return;
-
-        if (prevMapRef.current !== selectedMap) {
-            setMapChanged(true);
-            const timerId = setTimeout(() => setMapChanged(false), 700);
-            prevMapRef.current = selectedMap;
-            return () => clearTimeout(timerId);
-        }
-
-        prevMapRef.current = selectedMap;
-    }, [selectedMap]);
-    // 서버 randomTick 기반 랜덤 배정 효과 실행 (결과값 동일해도 표시)
-    useEffect(() => {
-        if (isFirstSyncRef.current) return;
-
-        const currentRandomTick = room.randomTick || 0;
-        if (currentRandomTick !== prevRandomTickRef.current) {
-            triggerDiceRollEffect();
-            prevRandomTickRef.current = currentRandomTick;
-        }
-    }, [room.randomTick]);
-
-    useEffect(() => {
-        return () => {
-            if (diceRollTimerRef.current) {
-                clearTimeout(diceRollTimerRef.current);
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        setTurnSecondsInput(String(roomTurnSeconds));
-    }, [roomTurnSeconds]);
-    // --- Handlers ---
-
-    /**
-     * 룰 변경 핸들러 (방장만 가능)
-     */
-    const handleRuleChange = (e) => {
-        if (isHostSettingsDisabled) return;
-
-        const newRule = normalizeRule(e.target.value);
-        onUpdateRoomSettings?.({ roomRule: newRule });
-
-        // 룰이 변경되면 진영 선택 상태를 초기화하거나 재조정하는 로직이 필요할 수 있음 
-        if (newRule === GAME_RULES.RANDOM) {
-            handleRandomizeFactions();
-        }
-    };
-
-    /**
-     * 맵 변경 핸들러 (방장만 가능)
-     */
-    const handleMapChange = (e) => {
-        if (isHostSettingsDisabled) return;
-
-        const newMap = e.target.value;
-        onUpdateRoomSettings?.({ roomMap: newMap });
-    };
-
-    const handleTurnSecondsChange = (e) => {
-        const inputValue = e.target.value;
-        setTurnSecondsInput(inputValue);
-        if (isHostSettingsDisabled) return;
-        if (inputValue === '') return;
-
-        const parsed = Number(inputValue);
-        if (!Number.isFinite(parsed)) return;
-        const normalized = Math.min(600, Math.max(1, Math.floor(parsed)));
-        onUpdateRoomSettings?.({ turnSeconds: normalized });
-    };
-
-    const handleTurnSecondsBlur = () => {
-        if (turnSecondsInput === '' || !Number.isFinite(Number(turnSecondsInput))) {
-            setTurnSecondsInput(String(roomTurnSeconds));
-            return;
-        }
-
-        const normalized = Math.min(600, Math.max(1, Math.floor(Number(turnSecondsInput))));
-        setTurnSecondsInput(String(normalized));
-        if (!isHostSettingsDisabled) {
-            onUpdateRoomSettings?.({ turnSeconds: normalized });
-        }
-    };
-
-    const getIsOmokTargetEditable = () => {
-        if (room.status === 'PLAYING') return false;
-        if (selectedRule === GAME_RULES.RANDOM) return false;
-        if (selectedRule === GAME_RULES.HOST) return isHost;
-
-        const isP1Omok = p1Faction.code === 'omok';
-        const isP2Omok = p2Faction.code === 'omok';
-        const isCurrentP1 = user.id === room.p1;
-        const isCurrentP2 = user.id === room.p2;
-
-        return (isCurrentP1 && isP1Omok) || (isCurrentP2 && isP2Omok);
-    };
-
-    const handleOmokStoneTargetChange = (e) => {
-        const parsed = Number(e.target.value);
-        if (!Number.isFinite(parsed)) return;
-        const normalized = Math.min(12, Math.max(6, Math.floor(parsed)));
-        if (!getIsOmokTargetEditable()) return;
-        onUpdateRoomSettings?.({ omokStoneTarget: normalized });
-    };
-
-    /**
-     * 특정 플레이어의 진영 변경 핸들러
-     * @param {string} playerKey 'p1' or 'p2'
-     * @param {string} factionCode 'chess', 'janggi', 'omok'
-     */
-    const handleFactionChange = (playerKey, factionCode) => {
-        const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
-        if (room.status === 'PLAYING' || isTargetReady) return;
-
-        const newFaction = Object.values(FACTIONS).find(f => f.code === factionCode);
-        if (!newFaction) return;
-
-        onUpdateRoomSettings?.({ [playerKey === 'p1' ? 'p1Faction' : 'p2Faction']: factionCode });
-    };
-
-    const handleColorChange = (playerKey, colorCode) => {
-        const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
-        if (room.status === 'PLAYING' || isTargetReady) return;
-
-        const exists = PIECE_COLORS.some((color) => color.code === colorCode);
-        if (!exists) return;
-
-        onUpdateRoomSettings?.({ [playerKey === 'p1' ? 'p1Color' : 'p2Color']: colorCode });
-    };
-
-    /**
-     * 진영 랜덤 배정 핸들러 (방장 전용 버튼)
-     */
-    const handleRandomizeFactions = () => {
-        if (isHostSettingsDisabled || !isP2Joined) return;
-
-        triggerDiceRollEffect();
-
-        const factionList = Object.values(FACTIONS);
-        const nextP1 = factionList[Math.floor(Math.random() * factionList.length)];
-        const nextP2 = factionList[Math.floor(Math.random() * factionList.length)];
-        onUpdateRoomSettings?.({ p1Faction: nextP1.code, p2Faction: nextP2.code });
-        // 맵도 랜덤으로 설정
-        const mapList = Object.values(MAP_TYPES);
-        const nextMap = mapList[Math.floor(Math.random() * mapList.length)];
-        onUpdateRoomSettings?.({ roomMap: nextMap });
-        const nextStoneTarget = OMOK_STONE_TARGET_OPTIONS[Math.floor(Math.random() * OMOK_STONE_TARGET_OPTIONS.length)];
-        onUpdateRoomSettings?.({ omokStoneTarget: nextStoneTarget });
-    };
-
-    /* 게임 준비 핸들러 */
-    const handleReadyClick = () => {
-        if (!isP2Joined) return;
-
-        onUpdateRoomSettings?.(isHost ? { p1Ready: !isP1Ready } : { p2Ready: !isP2Ready });
-    }
+    const {
+        selectedRule,
+        selectedMap,
+        p1Faction,
+        p2Faction,
+        p1Color,
+        p2Color,
+        omokStoneTarget,
+        countdown,
+        ruleChanged,
+        mapChanged,
+        turnSecondsInput,
+        isDiceRolling,
+        handleRuleChange,
+        handleMapChange,
+        handleTurnSecondsChange,
+        handleTurnSecondsBlur,
+        handleOmokStoneTargetChange,
+        handleFactionChange,
+        handleColorChange,
+        handleRandomizeFactions,
+        handleReadyClick,
+        getIsOmokTargetEditable,
+    } = useRoomSetup({
+        room,
+        user,
+        onUpdateRoomSettings,
+        isHost,
+        isP2Joined,
+        isP1Ready,
+        isP2Ready,
+        isHostSettingsDisabled,
+    });
 
     // --- UI Sub-components --- 
 
@@ -311,9 +63,11 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
      * 진영 선택 셀렉트 박스 렌더링
      */
     const renderFactionSelector = (playerKey, currentFaction) => {
+        const isBotSideControl = !!room?.isBotRoom && playerKey === 'p2' && isHost;
         const isEnabled =
             (selectedRule === GAME_RULES.FREE && user.id === room[playerKey]) ||
-            (selectedRule === GAME_RULES.HOST && isHost);
+            (selectedRule === GAME_RULES.HOST && isHost) ||
+            isBotSideControl;
         const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
         const isFactionSelectionLocked = room.status === 'PLAYING' || isTargetReady;
 
@@ -333,10 +87,13 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
         );
     };
 
+    // 말 색상 선택 셀렉트 박스를 조건부 렌더링합니다.
     const renderColorSelector = (playerKey, currentColor) => {
+        const isBotSideControl = !!room?.isBotRoom && playerKey === 'p2' && isHost;
         const isEnabled =
             (selectedRule === GAME_RULES.HOST && isHost) ||
-            (selectedRule !== GAME_RULES.HOST && user.id === room[playerKey]);
+            (selectedRule !== GAME_RULES.HOST && user.id === room[playerKey]) ||
+            isBotSideControl;
         const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
         const isColorSelectionLocked = room.status === 'PLAYING' || isTargetReady;
 

@@ -1,0 +1,62 @@
+.app-alert-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.46);
+  padding: 16px;
+}
+
+.app-alert-modal {
+  width: min(92vw, 360px);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-dark-depth-2);
+  color: var(--text-main);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36);
+  padding: 16px;
+}
+
+.app-alert-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-sub);
+}
+
+.app-alert-message {
+  margin-top: 8px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.app-alert-confirm {
+  margin-top: 14px;
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--bg-dark-depth-3);
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.app-alert-confirm:hover {
+  background: var(--bg-dark-depth-2);
+}
+
+.app-alert-actions {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-alert-actions .app-alert-confirm {
+  margin-top: 0;
+}
+
+.app-alert-choice-actions {
+  grid-template-columns: 1fr;
+}

@@ -1,0 +1,112 @@
+.mobile-lobby-dock,
+.mobile-chat-drawer {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .mobile-lobby-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2100;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 10px max(10px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-dark-depth-2);
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.28);
+  }
+
+  .mobile-lobby-dock.with-logout {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+
+  .mobile-dock-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    position: relative;
+    background: var(--bg-dark-depth-3);
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 10px 8px;
+    min-width: 0;
+    touch-action: manipulation;
+  }
+
+  .mobile-dock-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .mobile-chat-toggle.active {
+    border-color: var(--point-blue);
+    color: var(--point-blue);
+  }
+
+  .mobile-chat-unread-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--point-red);
+    display: inline-block;
+  }
+
+  .mobile-chat-drawer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(64px + env(safe-area-inset-bottom));
+    height: min(56vh, 420px);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-dark-depth-2);
+    z-index: 2090;
+    transform: translateY(110%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-lobby-dock.with-logout + .mobile-chat-drawer {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-chat-drawer.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mobile-chat-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 12px;
+    color: var(--text-main);
+  }
+
+  .mobile-chat-close {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-dark-depth-3);
+    color: var(--text-main);
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+
+  .mobile-chat-drawer .chat-container {
+    flex: 1;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    min-height: 0;
+  }
+}
