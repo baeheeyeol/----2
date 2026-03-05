@@ -4,7 +4,6 @@ import {
   GAME_RULES,
   MAP_TYPES,
   OMOK_STONE_TARGET_OPTIONS,
-  PIECE_COLORS,
 } from '@/game/constants';
 import { normalizeOmokStoneTarget, normalizeTurnSeconds } from '@/game/room-settings';
 
@@ -229,16 +228,6 @@ export function useRoomSetup({ room, user, onUpdateRoomSettings, isHost, isP2Joi
     onUpdateRoomSettings?.({ [playerKey === 'p1' ? 'p1Faction' : 'p2Faction']: factionCode });
   };
 
-  const handleColorChange = (playerKey, colorCode) => {
-    const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
-    if (room?.status === 'PLAYING' || isTargetReady) return;
-
-    const exists = PIECE_COLORS.some((color) => color.code === colorCode);
-    if (!exists) return;
-
-    onUpdateRoomSettings?.({ [playerKey === 'p1' ? 'p1Color' : 'p2Color']: colorCode });
-  };
-
   const handleReadyClick = () => {
     if (!isP2Joined) return;
     onUpdateRoomSettings?.(isHost ? { p1Ready: !isP1Ready } : { p2Ready: !isP2Ready });
@@ -263,7 +252,6 @@ export function useRoomSetup({ room, user, onUpdateRoomSettings, isHost, isP2Joi
     handleTurnSecondsBlur,
     handleOmokStoneTargetChange,
     handleFactionChange,
-    handleColorChange,
     handleRandomizeFactions,
     handleReadyClick,
     getIsOmokTargetEditable,

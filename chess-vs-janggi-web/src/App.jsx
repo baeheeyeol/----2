@@ -161,7 +161,7 @@ function App() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, []); // Ref를 쓰므로 의존성 배열을 비워도 항상 최신값을 참조함 (리스너 재등록 방지)
+  }, []); // Ref를 쓰므로 의존성 배열을 비워도 항상 최신값을 참조함 (리스너 재등록 방지) 
 
   return (
     <div className={`app-container ${user && currentRoom ? 'mobile-header-hidden' : ''}`}>

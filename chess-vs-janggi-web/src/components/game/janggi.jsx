@@ -10,6 +10,7 @@ import { useJanggiComputedState } from '@/hooks/game';
 import { getPieceEvaluationValue } from '@/ai';
 import { PIECE_COLOR_HEX, TURN_SECONDS_DEFAULT } from '@/game/constants';
 import { resolveRoomReadyState } from '@/game/room-settings';
+import { resolveFixedFirstTurnSide } from '@/game/turn-rules';
 import {
 	buildBoardFromPlacements,
 	CHESS_POOL,
@@ -388,7 +389,7 @@ const Janggi = ({ room, user, onUpdateRoomSettings }) => {
 
 	const onStart = () => {
 		if (!canHostStart) return;
-		const first = Math.random() < 0.5 ? 'top' : 'bottom';
+		const first = resolveFixedFirstTurnSide(room?.p1Faction, room?.p2Faction);
 		emitPatch({
 			started: true,
 			turnSide: first,

@@ -923,8 +923,6 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
             capturedBySide: { top: [], bottom: [] },
             p1Lives: 3,
             p2Lives: 3,
-            p1Ready: false,
-            p2Ready: false,
             p1Mode: 'formation',
             p2Mode: 'formation',
             p1Formation: getFormationOrRandom(gameSetup.p1Formation),

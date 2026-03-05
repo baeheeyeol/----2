@@ -1,6 +1,6 @@
 import React from 'react';
 import './room-page.css';
-import { FACTIONS, GAME_RULES, MAP_TYPES, OMOK_STONE_TARGET_OPTIONS, PIECE_COLORS } from '@/game/constants';
+import { FACTIONS, GAME_RULES, MAP_TYPES, OMOK_STONE_TARGET_OPTIONS } from '@/game/constants';
 import { resolveRoomReadyState } from '@/game/room-settings';
 import { useRoomSetup } from '@/hooks/useRoomSetup';
 
@@ -30,8 +30,6 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
         selectedMap,
         p1Faction,
         p2Faction,
-        p1Color,
-        p2Color,
         omokStoneTarget,
         countdown,
         ruleChanged,
@@ -44,7 +42,6 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
         handleTurnSecondsBlur,
         handleOmokStoneTargetChange,
         handleFactionChange,
-        handleColorChange,
         handleRandomizeFactions,
         handleReadyClick,
         getIsOmokTargetEditable,
@@ -89,33 +86,6 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
         );
     };
 
-    // 말 색상 선택 셀렉트 박스를 조건부 렌더링합니다.
-    const renderColorSelector = (playerKey, currentColor) => {
-        const isBotSideControl = !!room?.isBotRoom && playerKey === 'p2' && isHost;
-        const isEnabled =
-            (selectedRule === GAME_RULES.HOST && isHost) ||
-            (selectedRule !== GAME_RULES.HOST && user.id === room[playerKey]) ||
-            isBotSideControl;
-        const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
-        const isColorSelectionLocked = room.status === 'PLAYING' || isTargetReady;
-
-        if (!isEnabled) return null;
-
-        return (
-            <select
-                className="faction-select color-select"
-                value={currentColor}
-                onChange={(e) => handleColorChange(playerKey, e.target.value)}
-                disabled={isColorSelectionLocked}
-            >
-                {PIECE_COLORS.map((color) => (
-                    <option key={color.code} value={color.code}>{color.label}</option>
-                ))}
-            </select>
-        );
-    };
-
-
     return (
         <div className="room-page-container">
             {/* 메인 게임 셋업 카드 */}
@@ -138,11 +108,9 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
                         <div className={`ready-status ${isP1Ready ? 'ready' : 'not-ready'}`}>
                             {isP1Ready ? '준비완료' : '준비중'}
                         </div>
-                        <div className="piece-color-label">말 색상: {p1Color.toUpperCase()}</div>
                         <div className="faction-label">{p1Faction.label}</div>
                         {/* 진영 선택 셀렉터 */}
                         {renderFactionSelector('p1', p1Faction)}
-                        {renderColorSelector('p1', p1Color)}
                     </div>
 
                     <div className="vs-divider">
@@ -159,11 +127,9 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
                                 {isP2Ready ? '준비완료' : '준비중'}
                             </div>
                         )}
-                        <div className="piece-color-label">말 색상: {(isP2Joined ? p2Color : 'black').toUpperCase()}</div>
                         <div className="faction-label">{isP2Joined ? p2Faction.label : 'WAITING'}</div>
                         {/* 진영 선택 셀렉터 (상대가 접속했을 때만 표시) */}
                         {isP2Joined && renderFactionSelector('p2', p2Faction)}
-                        {isP2Joined && renderColorSelector('p2', p2Color)}
                     </div>
                 </div>
 

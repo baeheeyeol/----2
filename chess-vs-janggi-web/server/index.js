@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { SOCKET_EVENTS, validateSocketPayload } from '../src/socket/socket-contract.js';
 import { normalizeOmokStoneTarget, normalizeTurnSeconds } from '../src/game/room-settings.js';
+import { resolveFixedFirstTurnSide, resolveFixedPieceColorsByFirstTurn } from '../src/game/turn-rules.js';
 
 const app = express();
 const corsOriginEnv = process.env.CORS_ORIGIN || '*';
@@ -215,7 +216,7 @@ const handleUserExitRoom = (socketId) => {
       return false; // 목록에서 제외
     }
 
-    // 2. 참가자(P2)가 나가는 경우 -> 방 유지, P2 정보 초기화
+    // 2. 참가자(P2)가 나가는 경우
     if (room.p2_socketId === socketId) {
       if (isInGame && hasNoWinnerYet && room.p1) {
         const { p2Side } = resolvePlayerSides(room);
@@ -230,14 +231,23 @@ const handleUserExitRoom = (socketId) => {
         if (room.p2_socketId && io.sockets.sockets.has(room.p2_socketId)) {
           io.to(room.p2_socketId).emit(SOCKET_EVENTS.FORFEIT_RESULT, { winnerId, loserId });
         }
+
+        io.to(room.id).emit(SOCKET_EVENTS.ROOM_CLOSED, {
+          roomId: room.id,
+          message: '상대가 게임을 이탈하여 로비로 이동합니다.'
+        });
+        io.in(room.id).socketsLeave(room.id);
+        delete roomPasswords[room.id];
+        isRoomListChanged = true;
+        return false; // 게임 도중 이탈 시 방 종료
       }
 
+      // 대기 중 이탈은 방 유지, P2 슬롯만 초기화
       const leftUser = room.p2;
       room.p2 = null;
       room.p2_socketId = null;
       room.status = 'WAITING'; // 다시 대기 상태로 변경
       room.p2Faction = 'janggi';
-      room.p2Color = 'black';
       room.p1Ready = false;
       room.p2Ready = false;
       room.gameSetup = createDefaultGameSetup();
@@ -445,8 +455,8 @@ io.on('connection', (socket) => {
       roomMap: roomData.roomMap || '체스판',
       p1Faction: roomData.p1Faction || 'chess',
       p2Faction: roomData.p2Faction || 'janggi',
-      p1Color: roomData.p1Color || 'white',
-      p2Color: roomData.p2Color || 'black',
+      p1Color: 'white',
+      p2Color: 'black',
       omokStoneTarget: normalizeOmokStoneTarget(roomData.omokStoneTarget),
       turnSeconds: normalizeTurnSeconds(roomData.turnSeconds),
       randomTick: 0,
@@ -539,7 +549,6 @@ io.on('connection', (socket) => {
     const allowedRules = new Set(['자율선택', '랜덤배정', '방장선택']);
     const allowedMaps = new Set(['체스판', '장기판', '바둑판']);
     const allowedFactions = new Set(['chess', 'janggi', 'omok']);
-    const allowedColors = new Set(['white', 'black', 'red', 'blue', 'green', 'gold', 'purple']);
     const setupModeSet = new Set(['formation', 'recommended', 'custom']);
 
     if (typeof updates !== 'object' || !updates) {
@@ -580,14 +589,6 @@ io.on('connection', (socket) => {
       room.p2Faction = updates.p2Faction;
       room.p2Ready = false;
       room.gameSetup = createDefaultGameSetup();
-    }
-
-    if (updates.p1Color && allowedColors.has(updates.p1Color)) {
-      room.p1Color = updates.p1Color;
-    }
-
-    if (updates.p2Color && allowedColors.has(updates.p2Color)) {
-      room.p2Color = updates.p2Color;
     }
 
     if (updates.omokStoneTarget !== undefined) {
@@ -638,7 +639,10 @@ io.on('connection', (socket) => {
 
     if (updates.gameSetup && typeof updates.gameSetup === 'object') {
       const previousWinner = room.gameSetup?.winner ?? null;
+      const wasStarted = !!room.gameSetup?.started;
       const nextSetup = { ...(room.gameSetup || createDefaultGameSetup()) };
+      const requestedStart = updates.gameSetup.started === true;
+      const isStartTransition = requestedStart && !wasStarted;
 
       if (typeof updates.gameSetup.started === 'boolean') {
         nextSetup.started = updates.gameSetup.started;
@@ -714,6 +718,15 @@ io.on('connection', (socket) => {
       }
       if (Array.isArray(updates.gameSetup.p2CustomLayout)) {
         nextSetup.p2CustomLayout = updates.gameSetup.p2CustomLayout.slice(0, 32);
+      }
+
+      if (isStartTransition) {
+        const fixedFirstTurn = resolveFixedFirstTurnSide(room.p1Faction, room.p2Faction);
+        nextSetup.firstTurn = fixedFirstTurn;
+        nextSetup.turnSide = fixedFirstTurn;
+        const { p1Color, p2Color } = resolveFixedPieceColorsByFirstTurn(room.p1Faction, room.p2Faction, fixedFirstTurn);
+        room.p1Color = p1Color;
+        room.p2Color = p2Color;
       }
 
       if (previousWinner === null && (nextSetup.winner === 'top' || nextSetup.winner === 'bottom')) {

@@ -38,35 +38,24 @@
 
 ```text
 chess-vs-janggi-web/
-├─ public/                    # 정적 리소스
-├─ docs/                      # 아키텍처/규칙/회귀 체크 문서
 ├─ server/
 │  └─ index.js                # Express + Socket.io 서버, 룸/매치 상태 관리
 ├─ src/
 │  ├─ ai/                     # AI 코어 (룰 엔진/평가 함수/탐색)
-│  ├─ assets/                 # 이미지/아이콘 등 프론트 리소스
 │  ├─ components/             # 게임/로비 UI 컴포넌트
-│  ├─ game/                   # 룸 설정/게임 규칙/상수
 │  ├─ hooks/                  # 상태/세션/알림/타이머 커스텀 훅
 │  ├─ pages/                  # 페이지 단위 화면
 │  ├─ socket/                 # 소켓 이벤트 계약/emit/알림 처리
-│  ├─ styles/                 # 테마/공통 스타일
-│  ├─ utils/                  # 공통 유틸리티
-│  ├─ App.jsx                 # 앱 루트 컴포넌트
-│  ├─ main.jsx                # 프론트 엔트리포인트
-│  ├─ socket.js               # 소켓 클라이언트 초기화
 │  └─ workers/
 │     └─ bot-worker.js        # AI 연산 워커 (메인 스레드 분리)
-├─ package.json               # 스크립트/의존성 정의
-├─ vite.config.js             # Vite 설정
-└─ eslint.config.js           # ESLint 설정
+└─ docs/                      # 아키텍처/규칙/회귀 체크 문서
 ```
 
 ## Screenshots
 
-| 로비 | 룸 설정 | 대국 화면 |
-|---|---|---|
-| ![로비 화면](chess-vs-janggi-web/docs/screenshots/01-lobby.png) | ![룸 설정 화면](chess-vs-janggi-web/docs/screenshots/02-room.png) | ![대국 화면](chess-vs-janggi-web/docs/screenshots/03-battle.png) |
+아래 경로에 이미지를 추가하면 README에 바로 노출됩니다.
+
+- `docs/screenshotsts/01-lobby.png) | ![룸 설정 화면](docs/screenshots/02-room.png) | ![대국 화면](docs/screenshots/03-battle.png) |
 
 > 권장 해상도: 가로 1600px 이상, 동일 비율(16:9 또는 16:10)로 통일
 
@@ -76,7 +65,7 @@ chess-vs-janggi-web/
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
-cd 리액트임2/chess-vs-janggi-web
+cd chess-vs-janggi-web
 ```
 
 ### 2) Install
@@ -105,7 +94,7 @@ npm run build
 
 ## Environment Variables
 
-`chess-vs-janggi-web/.env` 파일을 만들고 아래 키를 설정하세요.
+루트에 `.env` 파일을 만들고 아래 키를 설정하세요.
 
 ```bash
 # Frontend
@@ -130,8 +119,3 @@ CORS_ORIGIN=http://localhost:5173
 
 - 이 프로젝트는 메모리 기반 룸 상태를 사용합니다. 서버 재시작 시 진행 상태는 초기화됩니다.
 - 실서비스 확장 시 Redis/DB 세션 저장소와 인증 체계(JWT/OAuth) 추가를 권장합니다.
-
-## Sub README
-
-- 동일 문서(프로젝트 폴더): [chess-vs-janggi-web/README.md](./chess-vs-janggi-web/README.md)
-
