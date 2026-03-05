@@ -53,12 +53,6 @@ chess-vs-janggi-web/
 
 ## Screenshots
 
-아래 경로에 이미지를 추가하면 README에 바로 노출됩니다.
-
-- `docs/screenshots/01-lobby.png`
-- `docs/screenshots/02-room.png`
-- `docs/screenshots/03-battle.png`
-
 | 로비 | 룸 설정 | 대국 화면 |
 |---|---|---|
 | ![로비 화면](docs/screenshots/01-lobby.png) | ![룸 설정 화면](docs/screenshots/02-room.png) | ![대국 화면](docs/screenshots/03-battle.png) |
