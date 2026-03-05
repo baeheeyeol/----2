@@ -118,9 +118,4 @@ CORS_ORIGIN=http://localhost:5173
 ## Notes
 
 - 이 프로젝트는 메모리 기반 룸 상태를 사용합니다. 서버 재시작 시 진행 상태는 초기화됩니다.
-- 실서비스 확장 시 Redis/DB 세션 저장소와 인증 체계(JWT/OAuth) 추가를 권장합니다.
-
-## Sub README
-
-- 동일 문서(프로젝트 폴더): [chess-vs-janggi-web/README.md](./chess-vs-janggi-web/README.md)
 
