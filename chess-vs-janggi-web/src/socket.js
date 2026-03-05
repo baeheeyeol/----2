@@ -2,9 +2,13 @@
 import io from 'socket.io-client';
 
 const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const renderClientHost = 'chess-vs-janggi-client.onrender.com';
+const renderServerUrl = 'https://chess-vs-janggi-server.onrender.com';
 const defaultSocketUrl = isLocalHost
   ? `${window.location.protocol}//${window.location.hostname}:3001`
-  : window.location.origin;
+  : window.location.hostname === renderClientHost
+    ? renderServerUrl
+    : window.location.origin;
 const socketUrl = import.meta.env.VITE_SOCKET_URL?.trim() || defaultSocketUrl;
 
 const resolveHealthUrl = () => {

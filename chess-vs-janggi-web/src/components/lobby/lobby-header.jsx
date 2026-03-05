@@ -4,13 +4,14 @@ import './lobby-header.css';
 import socket from '../../socket'; // 경로 확인 필요
 import { SOCKET_EVENTS } from '@/socket/socket-contract';
 
-const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme }) => {
+const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme, isLoginConnecting = false }) => {
     // 로컬 상태: 입력 필드 관리
     const [inputId, setInputId] = useState('');
     const [inputPw, setInputPw] = useState('');
     const [userCount, setUserCount] = useState(0); // 접속자 수 (임시)
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (isLoginConnecting) return;
         if (!inputId.trim() || !inputPw.trim()) return;
         onLogin(inputId, inputPw); // 부모(App)에게 로그인 요청
     };
@@ -58,14 +59,18 @@ const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme }) => {
                             placeholder="ID"
                             value={inputId}
                             onChange={(e) => setInputId(e.target.value)}
+                            disabled={isLoginConnecting}
                         />
                         <input
                             type="password"
                             placeholder="PW"
                             value={inputPw}
                             onChange={(e) => setInputPw(e.target.value)}
+                            disabled={isLoginConnecting}
                         />
-                        <button type="submit" className="btn-login">접속</button>
+                        <button type="submit" className="btn-login" disabled={isLoginConnecting}>
+                            {isLoginConnecting ? '연결 중...' : '접속'}
+                        </button>
                     </form>
                 )}
             </div>

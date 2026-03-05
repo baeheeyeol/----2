@@ -68,6 +68,7 @@ function App() {
     roomRef,
     forceLogoutToMain,
   });
+  const isLoginConnecting = !user && !!connectionNotice;
 
   useEffect(() => {
     const verifyStoredSession = () => {
@@ -171,6 +172,7 @@ function App() {
         onLogin={handleLogin}
         // 로그아웃 처리 콜백
         onLogout={handleLogout}
+        isLoginConnecting={isLoginConnecting}
         // 현재 테마 모드(light/dark)
         themeMode={themeMode}
         // 테마 토글 핸들러
@@ -179,8 +181,11 @@ function App() {
 
       <main className="main-content">
         {connectionNotice && (
-          <div className="socket-connection-banner" role="status" aria-live="polite">
-            {connectionNotice}
+          <div className="socket-connection-overlay" role="status" aria-live="polite" aria-busy="true">
+            <div className="socket-connection-modal">
+              <span className="socket-connection-spinner" aria-hidden="true" />
+              <div className="socket-connection-text">{connectionNotice}</div>
+            </div>
           </div>
         )}
 

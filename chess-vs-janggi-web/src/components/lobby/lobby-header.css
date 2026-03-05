@@ -67,6 +67,12 @@
   filter: brightness(1.1);
 }
 
+.login-form input:disabled,
+.btn-login:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* 로그인 후 프로필 스타일 */
 .user-profile {
   display: flex;

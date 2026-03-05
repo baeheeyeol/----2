@@ -12,20 +12,49 @@
   position: relative;
 }
 
-.socket-connection-banner {
+.socket-connection-overlay {
   position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1200;
+  inset: 0;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.socket-connection-modal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 280px;
+  max-width: min(92vw, 420px);
   border: 1px solid var(--border-color);
-  border-radius: 999px;
-  padding: 6px 12px;
+  border-radius: 12px;
+  padding: 14px 16px;
   background-color: var(--bg-dark-depth-2);
-  color: var(--text-sub);
-  font-size: 12px;
+}
+
+.socket-connection-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--point-gold);
+  flex: 0 0 auto;
+  animation: socket-spin 0.85s linear infinite;
+}
+
+.socket-connection-text {
+  color: var(--text-main);
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.01em;
+}
+
+@keyframes socket-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 좌측 방 목록 (넓게) */
@@ -145,9 +174,8 @@ h2 {
     font-size: 22px;
   }
 
-  .socket-connection-banner {
-    top: 6px;
-    width: min(92vw, 420px);
-    text-align: center;
+  .socket-connection-modal {
+    min-width: 0;
+    width: min(92vw, 360px);
   }
 }
