@@ -36,19 +36,32 @@
 
 ## Directory Structure
 
+## Directory Structure
+
 ```text
 chess-vs-janggi-web/
+├─ public/                    # 정적 리소스
+├─ docs/                      # 아키텍처/규칙/회귀 체크 문서
 ├─ server/
 │  └─ index.js                # Express + Socket.io 서버, 룸/매치 상태 관리
 ├─ src/
 │  ├─ ai/                     # AI 코어 (룰 엔진/평가 함수/탐색)
+│  ├─ assets/                 # 이미지/아이콘 등 프론트 리소스
 │  ├─ components/             # 게임/로비 UI 컴포넌트
+│  ├─ game/                   # 룸 설정/게임 규칙/상수
 │  ├─ hooks/                  # 상태/세션/알림/타이머 커스텀 훅
 │  ├─ pages/                  # 페이지 단위 화면
 │  ├─ socket/                 # 소켓 이벤트 계약/emit/알림 처리
+│  ├─ styles/                 # 테마/공통 스타일
+│  ├─ utils/                  # 공통 유틸리티
+│  ├─ App.jsx                 # 앱 루트 컴포넌트
+│  ├─ main.jsx                # 프론트 엔트리포인트
+│  ├─ socket.js               # 소켓 클라이언트 초기화
 │  └─ workers/
 │     └─ bot-worker.js        # AI 연산 워커 (메인 스레드 분리)
-└─ docs/                      # 아키텍처/규칙/회귀 체크 문서
+├─ package.json               # 스크립트/의존성 정의
+├─ vite.config.js             # Vite 설정
+└─ eslint.config.js           # ESLint 설정
 ```
 
 ## Screenshots
