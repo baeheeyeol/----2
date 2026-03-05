@@ -205,7 +205,6 @@ const handleUserExitRoom = (socketId) => {
         }
       }
 
-      console.log(`[Room Deleted] Creator left: ${room.id}`);
       io.to(room.id).emit(SOCKET_EVENTS.ROOM_CLOSED, {
         roomId: room.id,
         message: '방장이 방을 떠나 로비로 이동합니다.'
@@ -233,7 +232,6 @@ const handleUserExitRoom = (socketId) => {
         }
       }
 
-      console.log(`[Player Left] P2 left room: ${room.id}`);
       const leftUser = room.p2;
       room.p2 = null;
       room.p2_socketId = null;
@@ -261,10 +259,73 @@ const handleUserExitRoom = (socketId) => {
   }
 };
 
+const isSocketActive = (socketId) => {
+  if (!socketId) return false;
+  return io.sockets.sockets.has(socketId); 
+};
+
+const reconcileServerState = ({ emitUserCount = true, emitRoomList = true } = {}) => {
+  let userStateChanged = false;
+  let roomStateChanged = false;
+
+  for (const [socketId, userInfo] of Object.entries(connectedUsers)) {
+    if (!isSocketActive(socketId) || !userInfo?.id) {
+      if (userInfo?.id && userToSocketId[userInfo.id] === socketId) {
+        delete userToSocketId[userInfo.id];
+      }
+      delete connectedUsers[socketId];
+      userStateChanged = true;
+    }
+  }
+
+  for (const [userId, socketId] of Object.entries(userToSocketId)) {
+    const mappedUser = connectedUsers[socketId];
+    if (!isSocketActive(socketId) || !mappedUser || mappedUser.id !== userId) {
+      delete userToSocketId[userId];
+      userStateChanged = true;
+    }
+  }
+
+  const staleRoomSocketIds = new Set();
+  for (const room of rooms) {
+    if (room?.p1_socketId) {
+      const p1User = connectedUsers[room.p1_socketId];
+      const isP1Stale = !isSocketActive(room.p1_socketId) || !p1User || p1User.id !== room.p1;
+      if (isP1Stale) staleRoomSocketIds.add(room.p1_socketId);
+    }
+
+    if (room?.isBotRoom) continue;
+    if (room?.p2_socketId) {
+      const p2User = connectedUsers[room.p2_socketId];
+      const isP2Stale = !isSocketActive(room.p2_socketId) || !p2User || p2User.id !== room.p2;
+      if (isP2Stale) staleRoomSocketIds.add(room.p2_socketId);
+    }
+  }
+
+  if (staleRoomSocketIds.size > 0) {
+    staleRoomSocketIds.forEach((socketId) => {
+      handleUserExitRoom(socketId);
+    });
+    roomStateChanged = true;
+  }
+
+  if (emitUserCount && userStateChanged) {
+    io.emit(SOCKET_EVENTS.USER_COUNT, Object.keys(connectedUsers).length);
+  }
+  if (emitRoomList && roomStateChanged) {
+    io.emit(SOCKET_EVENTS.ROOM_LIST, rooms);
+  }
+};
+
+const RECONCILE_INTERVAL_MS = 60 * 60 * 1000;
+setInterval(() => {
+  reconcileServerState();
+}, RECONCILE_INTERVAL_MS);
+
 
 // --- [Socket Event Handlers] ---
 io.on('connection', (socket) => {
-  console.log(`User Connected: ${socket.id}`);
+  reconcileServerState();
 
   const onClientEvent = (eventName, handler) => {
     socket.on(eventName, (payload) => {
@@ -278,10 +339,17 @@ io.on('connection', (socket) => {
 
   // 1. 로그인 요청 
   onClientEvent(SOCKET_EVENTS.LOGIN, ({ userId }) => {
+    reconcileServerState({ emitRoomList: false });
     const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
 
     if (!normalizedUserId) {
       socket.emit(SOCKET_EVENTS.LOGIN_ERROR, { message: '유효한 ID를 입력해주세요.' });
+      return;
+    }
+
+    const currentUser = connectedUsers[socket.id];
+    if (currentUser?.id === normalizedUserId) {
+      socket.emit(SOCKET_EVENTS.LOGIN_SUCCESS, currentUser);
       return;
     }
 
@@ -320,8 +388,7 @@ io.on('connection', (socket) => {
 
   // 3. 연결 종료 (브라우저 닫음 등)
   socket.on(SOCKET_EVENTS.DISCONNECT, () => {
-    console.log(`User Disconnected: ${socket.id}`);
-    
+
     // 유저 정보 삭제
     const disconnectedUser = connectedUsers[socket.id];
     if (disconnectedUser) {
@@ -352,6 +419,7 @@ io.on('connection', (socket) => {
 
   // 5. 방 만들기
   onClientEvent(SOCKET_EVENTS.CREATE_ROOM, (roomData) => {
+    reconcileServerState({ emitRoomList: false });
     const currentUser = connectedUsers[socket.id];
     if (!currentUser) {
       socket.emit(SOCKET_EVENTS.CREATE_ROOM_ERROR, { message: '로그인이 필요합니다.' });
@@ -403,6 +471,7 @@ io.on('connection', (socket) => {
 
   // 6. 방 입장
   onClientEvent(SOCKET_EVENTS.JOIN_ROOM, ({ roomId, roomPassword }) => { // 변수명 roomId로 통일
+    reconcileServerState({ emitRoomList: false });
     const currentUser = connectedUsers[socket.id];
     if (!currentUser) {
       socket.emit(SOCKET_EVENTS.JOIN_ROOM_ERROR, { message: '로그인이 필요합니다.' });
@@ -448,6 +517,7 @@ io.on('connection', (socket) => {
   });
 
   onClientEvent(SOCKET_EVENTS.UPDATE_ROOM_SETTINGS, ({ roomId, updates }) => {
+    reconcileServerState({ emitRoomList: false });
     const currentUser = connectedUsers[socket.id];
     if (!currentUser) {
       socket.emit(SOCKET_EVENTS.UPDATE_ROOM_SETTINGS_ERROR, { message: '로그인이 필요합니다.' });
@@ -674,6 +744,7 @@ io.on('connection', (socket) => {
 
   // 7. 방 나가기 (대기실/게임 도중 나가기 버튼)
   onClientEvent(SOCKET_EVENTS.LEAVE_ROOM, ({ roomId }) => {
+    reconcileServerState({ emitRoomList: false });
     socket.leave(roomId);
     socket.emit(SOCKET_EVENTS.LEAVE_ROOM_SUCCESS);
     handleUserExitRoom(socket.id);
@@ -681,6 +752,7 @@ io.on('connection', (socket) => {
 
   // 8. 방 목록 요청 (로비 진입 시)
   socket.on(SOCKET_EVENTS.REQUEST_ROOM_LIST, () => {
+    reconcileServerState();
     socket.emit(SOCKET_EVENTS.ROOM_LIST, rooms);
   });
 });
@@ -688,5 +760,4 @@ io.on('connection', (socket) => {
 const PORT = Number(process.env.PORT) || 3001;
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 서버가 포트 ${PORT}에서 가동 중입니다!`);
 });

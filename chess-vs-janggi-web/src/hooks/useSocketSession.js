@@ -54,7 +54,29 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
       if (storedUser?.id) {
         emitSocketEvent(socket, SOCKET_EVENTS.LOGIN, { userId: storedUser.id }, { silent: true });
       }
+      socket.emit(SOCKET_EVENTS.REQUEST_ROOM_LIST);
     });
+
+    const runSessionSync = () => {
+      if (!socket.connected) return;
+
+      const activeUserId = userRef.current?.id;
+      if (activeUserId) {
+        emitSocketEvent(socket, SOCKET_EVENTS.LOGIN, { userId: activeUserId }, { silent: true });
+      }
+
+      socket.emit(SOCKET_EVENTS.REQUEST_ROOM_LIST);
+    };
+
+    const syncIntervalMs = 60 * 60 * 1000;
+    const syncTimer = window.setInterval(runSessionSync, syncIntervalMs);
+
+    const handleVisibilitySync = () => {
+      if (document.hidden) return;
+      runSessionSync();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilitySync);
 
     socket.on(SOCKET_EVENTS.LOGIN_SUCCESS, (userInfo) => {
       if (!validateSocketPayload(SOCKET_EVENTS.LOGIN_SUCCESS, userInfo)) return;
@@ -132,6 +154,8 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
       socket.off(SOCKET_EVENTS.ROOM_UPDATE);
       socket.off(SOCKET_EVENTS.FORFEIT_RESULT);
       socket.off(SOCKET_EVENTS.DISCONNECT);
+      window.clearInterval(syncTimer);
+      document.removeEventListener('visibilitychange', handleVisibilitySync);
       socket.io.off('reconnect_attempt', handleReconnectAttempt);
       socket.io.off('reconnect_failed', handleReconnectFailed);
     };
