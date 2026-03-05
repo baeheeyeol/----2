@@ -39,6 +39,7 @@ import {
     isKingInCheck,
     normalizeFaction,
 } from '@/game/rules/chessRules';
+import { resolveFixedFirstTurnSide, resolveFixedPieceColorsByFirstTurn } from '@/game/turn-rules';
 
 const DEFAULT_GAME_SETUP = {
     started: false,
@@ -287,12 +288,16 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
     const mySide = myKey === 'p1' ? p1Side : p2Side;
     const opponentSide = myKey === 'p1' ? p2Side : p1Side;
     const isFlipped = mySide === 'top';
-    const myColorCode = room?.[`${myKey}Color`] || (isHost ? 'white' : 'black');
-    const opponentColorCode = room?.[`${opponentKey}Color`] || (isHost ? 'black' : 'white');
-    const myPieceColor = PIECE_COLOR_HEX[myColorCode] || PIECE_COLOR_HEX.white;
-    const opponentPieceColor = PIECE_COLOR_HEX[opponentColorCode] || PIECE_COLOR_HEX.black;
 
     const gameSetup = { ...DEFAULT_GAME_SETUP, ...(room?.gameSetup || {}) };
+    const fixedFirstTurnSide = gameSetup.firstTurn || resolveFixedFirstTurnSide(room?.p1Faction, room?.p2Faction);
+    const fixedColors = resolveFixedPieceColorsByFirstTurn(room?.p1Faction, room?.p2Faction, fixedFirstTurnSide);
+    const myDefaultColor = myKey === 'p1' ? fixedColors.p1Color : fixedColors.p2Color;
+    const opponentDefaultColor = opponentKey === 'p1' ? fixedColors.p1Color : fixedColors.p2Color;
+    const myColorCode = room?.[`${myKey}Color`] || myDefaultColor;
+    const opponentColorCode = room?.[`${opponentKey}Color`] || opponentDefaultColor;
+    const myPieceColor = PIECE_COLOR_HEX[myColorCode] || PIECE_COLOR_HEX.white;
+    const opponentPieceColor = PIECE_COLOR_HEX[opponentColorCode] || PIECE_COLOR_HEX.black;
     const myMode = gameSetup[`${myKey}Mode`] || 'formation';
     const opponentMode = gameSetup[`${opponentKey}Mode`] || 'formation';
     const myFormation = getFormationOrDefault(gameSetup[`${myKey}Formation`]);

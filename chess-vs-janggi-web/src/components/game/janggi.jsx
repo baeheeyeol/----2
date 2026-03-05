@@ -10,7 +10,7 @@ import { useJanggiComputedState } from '@/hooks/game';
 import { getPieceEvaluationValue } from '@/ai';
 import { PIECE_COLOR_HEX, TURN_SECONDS_DEFAULT } from '@/game/constants';
 import { resolveRoomReadyState } from '@/game/room-settings';
-import { resolveFixedFirstTurnSide } from '@/game/turn-rules';
+import { resolveFixedFirstTurnSide, resolveFixedPieceColorsByFirstTurn } from '@/game/turn-rules';
 import {
 	buildBoardFromPlacements,
 	CHESS_POOL,
@@ -680,8 +680,12 @@ const Janggi = ({ room, user, onUpdateRoomSettings }) => {
 	const isFlipped = mySide === 'top';
 	const topUserId = room?.p1 || 'TOP';
 	const bottomUserId = room?.p2 || 'BOTTOM';
-	const myColorCode = room?.[`${myKey}Color`] || (isHost ? 'white' : 'black');
-	const opponentColorCode = room?.[`${opponentKey}Color`] || (isHost ? 'black' : 'white');
+	const fixedFirstTurnSide = gameSetup.firstTurn || resolveFixedFirstTurnSide(room?.p1Faction, room?.p2Faction);
+	const fixedColors = resolveFixedPieceColorsByFirstTurn(room?.p1Faction, room?.p2Faction, fixedFirstTurnSide);
+	const myDefaultColor = myKey === 'p1' ? fixedColors.p1Color : fixedColors.p2Color;
+	const opponentDefaultColor = opponentKey === 'p1' ? fixedColors.p1Color : fixedColors.p2Color;
+	const myColorCode = room?.[`${myKey}Color`] || myDefaultColor;
+	const opponentColorCode = room?.[`${opponentKey}Color`] || opponentDefaultColor;
 	const myPieceColor = PIECE_COLOR_HEX[myColorCode] || PIECE_COLOR_HEX.white;
 	const opponentPieceColor = PIECE_COLOR_HEX[opponentColorCode] || PIECE_COLOR_HEX.black;
 	const getPieceColorBySide = (side) => (side === mySide ? myPieceColor : opponentPieceColor);

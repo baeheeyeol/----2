@@ -90,6 +90,28 @@ const createDefaultGameSetup = () => ({
   p2CustomLayout: []
 });
 
+const syncRoomFirstTurnAndColors = (room, options = {}) => {
+  if (!room) return;
+
+  const { forceTurnSideSync = false } = options;
+  const fixedFirstTurn = resolveFixedFirstTurnSide(room.p1Faction, room.p2Faction);
+  const { p1Color, p2Color } = resolveFixedPieceColorsByFirstTurn(room.p1Faction, room.p2Faction, fixedFirstTurn);
+
+  room.p1Color = p1Color;
+  room.p2Color = p2Color;
+
+  const nextSetup = {
+    ...(room.gameSetup || createDefaultGameSetup()),
+    firstTurn: fixedFirstTurn,
+  };
+
+  if (forceTurnSideSync || !nextSetup.started) {
+    nextSetup.turnSide = fixedFirstTurn;
+  }
+
+  room.gameSetup = nextSetup;
+};
+
 const getOrCreateUserRecord = (userId) => {
   if (!userRecords[userId]) {
     userRecords[userId] = { wins: 0, losses: 0, games: 0 };
@@ -251,6 +273,7 @@ const handleUserExitRoom = (socketId) => {
       room.p1Ready = false;
       room.p2Ready = false;
       room.gameSetup = createDefaultGameSetup();
+      syncRoomFirstTurnAndColors(room, { forceTurnSideSync: true });
       
       // 해당 방에 있는 사람들에게 알림
       io.to(room.id).emit(SOCKET_EVENTS.PLAYER_LEFT, { user: leftUser });
@@ -468,6 +491,8 @@ io.on('connection', (socket) => {
       gameSetup: initialGameSetup
     };
 
+    syncRoomFirstTurnAndColors(newRoom, { forceTurnSideSync: true });
+
     if (newRoom.isPrivate) {
       roomPasswords[newRoom.id] = typeof roomData.roomPassword === 'string' ? roomData.roomPassword : '';
     }
@@ -511,6 +536,7 @@ io.on('connection', (socket) => {
       room.p1Ready = false;
       room.p2Ready = false;
       room.gameSetup = createDefaultGameSetup();
+      syncRoomFirstTurnAndColors(room, { forceTurnSideSync: true });
       
       socket.join(room.id);
       
@@ -583,12 +609,14 @@ io.on('connection', (socket) => {
       room.p1Faction = updates.p1Faction;
       room.p1Ready = false;
       room.gameSetup = createDefaultGameSetup();
+      syncRoomFirstTurnAndColors(room, { forceTurnSideSync: true });
     }
 
     if (updates.p2Faction && allowedFactions.has(updates.p2Faction)) {
       room.p2Faction = updates.p2Faction;
       room.p2Ready = false;
       room.gameSetup = createDefaultGameSetup();
+      syncRoomFirstTurnAndColors(room, { forceTurnSideSync: true });
     }
 
     if (updates.omokStoneTarget !== undefined) {

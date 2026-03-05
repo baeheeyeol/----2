@@ -219,8 +219,9 @@ export function useRoomSetup({ room, user, onUpdateRoomSettings, isHost, isP2Joi
   };
 
   const handleFactionChange = (playerKey, factionCode) => {
+    const isBotSideControl = !!room?.isBotRoom && playerKey === 'p2' && isHost;
     const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
-    if (room?.status === 'PLAYING' || isTargetReady) return;
+    if (room?.status === 'PLAYING' || (isTargetReady && !isBotSideControl)) return;
 
     const newFaction = Object.values(FACTIONS).find((faction) => faction.code === factionCode);
     if (!newFaction) return;

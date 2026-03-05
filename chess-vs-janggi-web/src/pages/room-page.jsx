@@ -68,7 +68,7 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
             (selectedRule === GAME_RULES.HOST && isHost) ||
             isBotSideControl;
         const isTargetReady = playerKey === 'p1' ? isP1Ready : isP2Ready;
-        const isFactionSelectionLocked = room.status === 'PLAYING' || isTargetReady;
+        const isFactionSelectionLocked = room.status === 'PLAYING' || (isTargetReady && !isBotSideControl);
 
         if (!isEnabled || selectedRule === GAME_RULES.RANDOM) return null;
 

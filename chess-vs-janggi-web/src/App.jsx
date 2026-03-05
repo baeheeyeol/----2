@@ -212,7 +212,7 @@ function App() {
                 user={user}
                 // 방 나가기 콜백
                 onLeave={handleLeaveRoom}
-                // 방 옵션 변경 요청 콜백
+                // 방 옵션 변경 요청 콜백 
                 onUpdateRoomSettings={handleUpdateRoomSettings}
               />
             </section>
