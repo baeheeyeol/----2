@@ -9,10 +9,32 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
   const [connectionNotice, setConnectionNotice] = useState('');
 
   useEffect(() => {
+    const CONNECTION_PREP_TIMEOUT_MS = 5 * 60 * 1000;
     let isDisposed = false;
+    let connectionPrepTimer = null;
+
+    const clearConnectionPrepTimer = () => {
+      if (connectionPrepTimer) {
+        window.clearTimeout(connectionPrepTimer);
+        connectionPrepTimer = null;
+      }
+    };
+
+    const scheduleConnectionPrepTimeout = () => {
+      clearConnectionPrepTimer();
+      connectionPrepTimer = window.setTimeout(() => {
+        if (isDisposed || socket.connected) return;
+
+        setConnectionNotice('서버 연결에 실패했습니다. 자동으로 재시도합니다...');
+        socket.connect();
+        scheduleConnectionPrepTimeout();
+      }, CONNECTION_PREP_TIMEOUT_MS);
+    };
 
     const warmupAndConnect = async () => {
-      setConnectionNotice('서버 연결 준비 중입니다...');
+      setConnectionNotice('서버 연결 준비 중입니다... 최대 5분까지 걸릴 수 있습니다.');
+      scheduleConnectionPrepTimeout();
+
       try {
         await fetch(socketHealthUrl, {
           method: 'GET',
@@ -49,6 +71,7 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
     socket.io.on('reconnect_failed', handleReconnectFailed);
 
     socket.on(SOCKET_EVENTS.CONNECT, () => {
+      clearConnectionPrepTimer();
       setConnectionNotice('');
       const storedUser = getStoredUser();
       if (storedUser?.id) {
@@ -162,6 +185,7 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
 
     return () => {
       isDisposed = true;
+      clearConnectionPrepTimer();
       detachAlertCenter();
       socket.off(SOCKET_EVENTS.LOGIN_SUCCESS);
       socket.off(SOCKET_EVENTS.USER_PROFILE_UPDATED);
