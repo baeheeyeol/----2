@@ -48,7 +48,7 @@ const LobbyHeader = ({ user, onLogin, onLogout, themeMode, onToggleTheme, isLogi
                     // 로그인 성공 시
                     <div className="user-profile">
                         <span className="user-name">{user.id}</span>
-                        <span className="user-stat">(승률 {user.winRate}%)</span>
+                        <span className="user-stat">({Number(user.wins) || 0}승 {Number(user.losses) || 0}패)</span>
                         <button className="btn-logout" onClick={onLogout}>로그아웃</button>
                     </div>
                 ) : (

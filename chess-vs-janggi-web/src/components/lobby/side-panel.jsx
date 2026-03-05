@@ -102,8 +102,7 @@ const SidePanel = ({ user, currentRoomId }) => {
                     {user ? (
                         <div className="profile-stats">
                             <p>ID: <strong>{user.id}</strong></p>
-                            <p>승률: {user.winRate}% (Rank {user.rank})</p>
-                            <button className="btn-detail">전적 표시</button>
+                            <p>전적: {Number(user.wins) || 0}승 {Number(user.losses) || 0}패</p>
                         </div>
                     ) : (
                         <div className="profile-placeholder">

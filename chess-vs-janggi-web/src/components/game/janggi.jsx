@@ -700,6 +700,8 @@ const Janggi = ({ room, user, onUpdateRoomSettings }) => {
 	const uiOpponentReady = opponentReady || !!room?.isBotRoom;
 	const opponentStatusText = uiOpponentReady ? '준비 완료' : '준비 중';
 	const myCaptured = gameSetup.capturedBySide?.[mySide] || [];
+	const opponentSide = mySide === 'top' ? 'bottom' : 'top';
+	const opponentCaptured = gameSetup.capturedBySide?.[opponentSide] || [];
 	const hasOmokPlayer = myFaction === 'omok' || opponentFaction === 'omok';
 	const commonRules = [
 		'공용: 턴 시간이 0초가 되면 상대 턴으로 자동 전환됩니다.',
@@ -793,7 +795,8 @@ const Janggi = ({ room, user, onUpdateRoomSettings }) => {
 					onStart={onStart}
 					customReadyHint={!canReady && isMyChess && myMode === 'custom' ? '자율배치에서는 모든 기물을 배치해야 준비할 수 있습니다.' : ''}
 					ruleItems={ruleItems}
-					capturedPieces={myCaptured}
+					myCapturedPieces={myCaptured}
+					opponentCapturedPieces={opponentCaptured}
 					renderCapturedPiece={(piece) => (
 						<span key={piece.id} className={`reserve-piece captured-piece ${piece.faction === 'omok' ? 'omok-stone' : ''}`} style={{ color: getPieceColorBySide(piece.side) }}>
 							{getPieceSymbol(piece)}

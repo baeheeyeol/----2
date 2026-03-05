@@ -960,6 +960,7 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
     const moveKeySet = new Set(legalMoves.map((move) => `${move.row}-${move.col}`));
 
     const myCaptured = capturedBySide[mySide] || [];
+    const opponentCaptured = capturedBySide[opponentSide] || [];
     const janggiPalaceSet = useMemo(
         () => getJanggiPalaceSet({ p1Faction: room?.p1Faction, p2Faction: room?.p2Faction }),
         [room?.p1Faction, room?.p2Faction],
@@ -1121,7 +1122,8 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
                     onStart={startBattle}
                     customReadyHint={!canToggleReady && effectiveMyMode === 'custom' ? '자율선택 모드에서는 모든 기물을 배치해야 준비할 수 있습니다.' : ''}
                     ruleItems={ruleItems}
-                    capturedPieces={myCaptured}
+                    myCapturedPieces={myCaptured}
+                    opponentCapturedPieces={opponentCaptured}
                     renderCapturedPiece={(piece) => (
                         <span
                             key={piece.id}

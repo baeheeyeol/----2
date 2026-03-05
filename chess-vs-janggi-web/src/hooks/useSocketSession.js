@@ -135,6 +135,25 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
     socket.on(SOCKET_EVENTS.FORFEIT_RESULT, (payload) => {
       if (!validateSocketPayload(SOCKET_EVENTS.FORFEIT_RESULT, payload)) return;
       if (!payload?.winnerId || !payload?.loserId) return;
+
+      persistUser((prev) => {
+        if (!prev?.id) return prev;
+
+        const isWinner = prev.id === payload.winnerId;
+        const isLoser = prev.id === payload.loserId;
+        if (!isWinner && !isLoser) return prev;
+
+        const nextWins = (Number(prev.wins) || 0) + (isWinner ? 1 : 0);
+        const nextLosses = (Number(prev.losses) || 0) + (isLoser ? 1 : 0);
+
+        return {
+          ...prev,
+          wins: nextWins,
+          losses: nextLosses,
+          games: nextWins + nextLosses,
+        };
+      });
+
       setForfeitResult(payload);
       window.setTimeout(() => {
         setForfeitResult((prev) => (prev === payload ? null : prev));

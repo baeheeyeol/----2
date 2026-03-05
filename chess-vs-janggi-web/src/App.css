@@ -67,7 +67,7 @@
 
 .game-section {
   flex: 4.5;
-  padding: 24px;
+  padding: 0;
   border-right: 1px solid var(--border-color);
   overflow: hidden;
 }
@@ -138,11 +138,16 @@ h2 {
     padding-bottom: calc(70px + env(safe-area-inset-bottom));
   }
 
-  .room-list-section,
-  .game-section {
+  .room-list-section {
     flex: 1;
     border-right: none;
     padding: 16px;
+  }
+
+  .game-section {
+    flex: 1;
+    border-right: none;
+    padding: 0;
   }
 
   .side-panel-section {
@@ -159,9 +164,12 @@ h2 {
     padding-bottom: calc(74px + env(safe-area-inset-bottom));
   }
 
-  .room-list-section,
-  .game-section {
+  .room-list-section {
     padding: 10px;
+  }
+
+  .game-section {
+    padding: 0;
   }
 
   .forfeit-result-modal {

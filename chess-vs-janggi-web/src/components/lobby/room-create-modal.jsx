@@ -81,7 +81,6 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
                         {roomData.isBotRoom && (
                             <>
                                 <div className="form-group">
-                                    <label>봇 난이도</label>
                                     <select
                                         value={roomData.botLevel}
                                         onChange={(e) => setRoomData({ ...roomData, botLevel: Number(e.target.value) })}
@@ -91,7 +90,6 @@ const RoomCreateModal = ({ isOpen, onClose, onCreate }) => {
                                         <option value={3}>난이도 3 (미니맥스)</option>
                                     </select>
                                 </div>
-                                <div className="form-helper">상대 슬롯이 BOT으로 고정됩니다.</div>
                             </>
                         )}
                     </div>
