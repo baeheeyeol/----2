@@ -61,20 +61,13 @@ chess-vs-janggi-web/
 
 ## Getting Started
 
-### 1) Clone
-
-```bash
-git clone <YOUR_REPOSITORY_URL>
-cd 리액트임2/chess-vs-janggi-web
-```
-
-### 2) Install
+### 1) Install
 
 ```bash
 npm install
 ```
 
-### 3) Run (터미널 2개 필요)
+### 2) Run (터미널 2개 필요)
 
 ```bash
 # Terminal A: Frontend (Vite)
@@ -86,7 +79,7 @@ npm run dev
 npm run server
 ```
 
-### 4) Build
+### 3) Build
 
 ```bash
 npm run build
