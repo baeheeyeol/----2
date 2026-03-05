@@ -7,6 +7,7 @@ import { playGameSound } from '../../utils/game-sound';
 import { useTurnFeedback } from '../../hooks/useTurnFeedback';
 import { useChessComputedState } from '@/hooks/game';
 import { getPieceEvaluationValue } from '@/ai';
+import { resolveRoomReadyState } from '@/game/room-settings';
 import {
     DEFAULT_STONE_CAPTURE_WIN_TARGET,
     FORMATION_KEYS,
@@ -902,9 +903,8 @@ const Chess = ({ room, user, onUpdateRoomSettings }) => {
         });
     };
 
-    const botRoomReady = !!room?.isBotRoom && !!room?.p1Ready && !!room?.p2Ready;
-    const setupReady = !!gameSetup.p1Ready && !!gameSetup.p2Ready;
-    const canHostStart = isHost && (setupReady || botRoomReady);
+    const readyState = resolveRoomReadyState(room, gameSetup);
+    const canHostStart = isHost && readyState.p1Ready && readyState.p2Ready;
 
     // 양측 준비 완료 시 실제 대전을 시작합니다.
     const startBattle = () => {

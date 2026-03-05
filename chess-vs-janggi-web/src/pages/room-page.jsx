@@ -1,6 +1,7 @@
 import React from 'react';
 import './room-page.css';
 import { FACTIONS, GAME_RULES, MAP_TYPES, OMOK_STONE_TARGET_OPTIONS, PIECE_COLORS } from '@/game/constants';
+import { resolveRoomReadyState } from '@/game/room-settings';
 import { useRoomSetup } from '@/hooks/useRoomSetup';
 
 const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
@@ -19,8 +20,9 @@ const RoomPage = ({ room, user, onLeave, onUpdateRoomSettings }) => {
 
     const isHost = user.id === room.p1;
     const isP2Joined = !!room.p2;
-    const isP1Ready = !!room.p1Ready;
-    const isP2Ready = !!room.p2Ready;
+    const readyState = resolveRoomReadyState(room);
+    const isP1Ready = readyState.p1Ready;
+    const isP2Ready = readyState.p2Ready;
     const isCurrentUserReady = isHost ? isP1Ready : isP2Ready;
     const isHostSettingsDisabled = !isHost || isP1Ready || room.status === 'PLAYING';
     const {

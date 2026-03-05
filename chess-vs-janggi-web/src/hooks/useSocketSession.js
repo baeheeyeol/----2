@@ -1,13 +1,33 @@
-import { useEffect } from 'react';
-import socket from '@/socket';
+import { useEffect, useState } from 'react';
+import socket, { socketHealthUrl } from '@/socket';
 import { getStoredUser } from '@/hooks/useStoredUser';
 import { emitSocketEvent } from '@/socket/socket-emit';
 import { attachSocketAlertCenter } from '@/socket/socket-alert-center';
 import { SOCKET_EVENTS, validateSocketPayload } from '@/socket/socket-contract';
 
 export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult, userRef, roomRef, forceLogoutToMain }) {
+  const [connectionNotice, setConnectionNotice] = useState('');
+
   useEffect(() => {
-    socket.connect();
+    let isDisposed = false;
+
+    const warmupAndConnect = async () => {
+      setConnectionNotice('서버 연결 준비 중입니다...');
+      try {
+        await fetch(socketHealthUrl, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'omit',
+        });
+      } catch {
+      }
+
+      if (isDisposed) return;
+      setConnectionNotice('서버 연결 중입니다...');
+      socket.connect();
+    };
+
+    warmupAndConnect();
 
     const detachAlertCenter = attachSocketAlertCenter({
       socket,
@@ -15,7 +35,21 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
       setCurrentRoom,
     });
 
+    const handleReconnectAttempt = () => {
+      if (!userRef.current) return;
+      setConnectionNotice('연결이 끊겨 재연결 중입니다...');
+    };
+
+    const handleReconnectFailed = () => {
+      if (!userRef.current) return;
+      setConnectionNotice('서버 응답 지연 중입니다. 잠시 후 자동으로 다시 시도합니다...');
+    };
+
+    socket.io.on('reconnect_attempt', handleReconnectAttempt);
+    socket.io.on('reconnect_failed', handleReconnectFailed);
+
     socket.on(SOCKET_EVENTS.CONNECT, () => {
+      setConnectionNotice('');
       const storedUser = getStoredUser();
       if (storedUser?.id) {
         emitSocketEvent(socket, SOCKET_EVENTS.LOGIN, { userId: storedUser.id }, { silent: true });
@@ -39,7 +73,19 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
 
     socket.on(SOCKET_EVENTS.DISCONNECT, (reason) => {
       if (!userRef.current) return;
-      forceLogoutToMain(`세션 연결이 끊어졌습니다. (${reason})\n메인 화면으로 이동합니다.`);
+
+      if (reason === 'io server disconnect') {
+        forceLogoutToMain('서버에서 세션이 종료되었습니다. 다시 로그인해주세요.');
+        return;
+      }
+
+      const recoverableReasons = new Set(['ping timeout', 'transport close', 'transport error']);
+      if (recoverableReasons.has(reason)) {
+        setConnectionNotice('연결이 일시적으로 끊겼습니다. 자동 복구 중입니다...');
+        return;
+      }
+
+      forceLogoutToMain(`세션 연결이 종료되었습니다. (${reason})\n메인 화면으로 이동합니다.`);
     });
 
     socket.on(SOCKET_EVENTS.CREATE_ROOM_SUCCESS, (newRoom) => {
@@ -74,6 +120,7 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
     });
 
     return () => {
+      isDisposed = true;
       detachAlertCenter();
       socket.off(SOCKET_EVENTS.LOGIN_SUCCESS);
       socket.off(SOCKET_EVENTS.USER_PROFILE_UPDATED);
@@ -85,6 +132,10 @@ export function useSocketSession({ persistUser, setCurrentRoom, setForfeitResult
       socket.off(SOCKET_EVENTS.ROOM_UPDATE);
       socket.off(SOCKET_EVENTS.FORFEIT_RESULT);
       socket.off(SOCKET_EVENTS.DISCONNECT);
+      socket.io.off('reconnect_attempt', handleReconnectAttempt);
+      socket.io.off('reconnect_failed', handleReconnectFailed);
     };
   }, [persistUser, forceLogoutToMain, roomRef, setCurrentRoom, setForfeitResult, userRef]);
+
+  return { connectionNotice };
 }

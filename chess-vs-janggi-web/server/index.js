@@ -1,21 +1,37 @@
 import express from 'express';
 import http from 'http';
+import process from 'node:process';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { SOCKET_EVENTS, validateSocketPayload } from '../src/socket/socket-contract.js';
+import { normalizeOmokStoneTarget, normalizeTurnSeconds } from '../src/game/room-settings.js';
 
 const app = express();
-app.use(cors());
+const corsOriginEnv = process.env.CORS_ORIGIN || '*';
+const corsOriginList = corsOriginEnv
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowAllOrigins = corsOriginList.includes('*');
+const corsOriginOption = allowAllOrigins ? '*' : corsOriginList;
+const corsCredentials = !allowAllOrigins;
+const corsOptions = {
+  origin: corsOriginOption,
+  methods: ['GET', 'POST'],
+  credentials: corsCredentials,
+};
+
+app.use(cors(corsOptions));
+
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true, timestamp: Date.now() });
+});
 
 const server = http.createServer(app);
 
 // Socket.io 설정
 const io = new Server(server, {
-  cors: {
-    origin: "*", // 모든 오리진 허용 (개발 단계)
-    methods: ["GET", "POST"],
-    credentials: true
-  },
+  cors: corsOptions,
   allowEIO3: true // 하위 호환성 유지
 });
 
@@ -72,12 +88,6 @@ const createDefaultGameSetup = () => ({
   p1CustomLayout: [],
   p2CustomLayout: []
 });
-
-const normalizeOmokStoneTarget = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 8;
-  return Math.min(12, Math.max(6, Math.floor(parsed)));
-};
 
 const getOrCreateUserRecord = (userId) => {
   if (!userRecords[userId]) {
@@ -266,7 +276,7 @@ io.on('connection', (socket) => {
     });
   };
 
-  // 1. 로그인 요청
+  // 1. 로그인 요청 
   onClientEvent(SOCKET_EVENTS.LOGIN, ({ userId }) => {
     const normalizedUserId = typeof userId === 'string' ? userId.trim() : '';
 
@@ -370,7 +380,7 @@ io.on('connection', (socket) => {
       p1Color: roomData.p1Color || 'white',
       p2Color: roomData.p2Color || 'black',
       omokStoneTarget: normalizeOmokStoneTarget(roomData.omokStoneTarget),
-      turnSeconds: Number.isFinite(Number(roomData.turnSeconds)) ? Math.min(600, Math.max(1, Number(roomData.turnSeconds))) : 60,
+      turnSeconds: normalizeTurnSeconds(roomData.turnSeconds),
       randomTick: 0,
       p1Ready: false,
       p2Ready: isBotRoom,
@@ -533,15 +543,23 @@ io.on('connection', (socket) => {
     if (updates.turnSeconds !== undefined) {
       const numericTurnSeconds = Number(updates.turnSeconds);
       if (Number.isFinite(numericTurnSeconds)) {
-        room.turnSeconds = Math.min(600, Math.max(1, Math.floor(numericTurnSeconds)));
+        room.turnSeconds = normalizeTurnSeconds(numericTurnSeconds);
       }
     }
 
     if (updates.p2Ready !== undefined) {
       room.p2Ready = !!updates.p2Ready;
+      room.gameSetup = {
+        ...(room.gameSetup || createDefaultGameSetup()),
+        p2Ready: room.p2Ready,
+      };
     }
     if (updates.p1Ready !== undefined) {
       room.p1Ready = !!updates.p1Ready;
+      room.gameSetup = {
+        ...(room.gameSetup || createDefaultGameSetup()),
+        p1Ready: room.p1Ready,
+      };
     }
 
     if (isRandomShuffleRequest) {
@@ -633,6 +651,8 @@ io.on('connection', (socket) => {
       }
 
       room.gameSetup = nextSetup;
+      room.p1Ready = !!nextSetup.p1Ready;
+      room.p2Ready = !!nextSetup.p2Ready;
     }
 
     if (room.isBotRoom) {
@@ -665,7 +685,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 서버가 포트 ${PORT}에서 가동 중입니다!`);

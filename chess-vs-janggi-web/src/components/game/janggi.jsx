@@ -9,6 +9,7 @@ import { useTurnFeedback } from '../../hooks/useTurnFeedback';
 import { useJanggiComputedState } from '@/hooks/game';
 import { getPieceEvaluationValue } from '@/ai';
 import { PIECE_COLOR_HEX, TURN_SECONDS_DEFAULT } from '@/game/constants';
+import { resolveRoomReadyState } from '@/game/room-settings';
 import {
 	buildBoardFromPlacements,
 	CHESS_POOL,
@@ -295,9 +296,8 @@ const Janggi = ({ room, user, onUpdateRoomSettings }) => {
 		buildBoardFromPlacements,
 	});
 
-	const botRoomReady = !!room?.isBotRoom && !!room?.p1Ready && !!room?.p2Ready;
-	const setupReady = !!gameSetup.p1Ready && !!gameSetup.p2Ready;
-	const canHostStart = isHost && (setupReady || botRoomReady);
+	const readyState = resolveRoomReadyState(room, gameSetup);
+	const canHostStart = isHost && readyState.p1Ready && readyState.p2Ready;
 	const currentTurn = gameSetup.turnSide || 'top';
 	const winnerId = gameSetup.winner === 'top' ? room?.p1 : gameSetup.winner === 'bottom' ? room?.p2 : null;
 	const loserId = gameSetup.winner === 'top' ? room?.p2 : gameSetup.winner === 'bottom' ? room?.p1 : null;

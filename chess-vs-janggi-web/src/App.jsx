@@ -60,7 +60,7 @@ function App() {
     }
   }, [clearUser]);
 
-  useSocketSession({
+  const { connectionNotice } = useSocketSession({
     persistUser,
     setCurrentRoom,
     setForfeitResult,
@@ -155,7 +155,7 @@ function App() {
       socket.disconnect();
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload); 
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -178,6 +178,12 @@ function App() {
       />
 
       <main className="main-content">
+        {connectionNotice && (
+          <div className="socket-connection-banner" role="status" aria-live="polite">
+            {connectionNotice}
+          </div>
+        )}
+
         {currentRoom ? (
           isGameStarted && isGameViewVisible ? (
             <section className="game-section">

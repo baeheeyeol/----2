@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { computeRemainingPool, resolvePlacementsForSide } from '../shared/computedStateUtils';
+import { normalizeOmokStoneTarget, normalizeTurnSeconds, resolveRoomReadyState } from '@/game/room-settings';
 
 // 체스 통합 보드의 배치/풀/제한값 파생 상태를 계산합니다.
 export function useChessComputedState({
@@ -103,15 +104,14 @@ export function useChessComputedState({
   const unplacedPool = useMemo(() => computeRemainingPool(poolTypes, normalizedMyLayout), [poolTypes, normalizedMyLayout]);
 
   // 준비/시작 조건에서 자주 쓰는 파생 플래그를 계산합니다.
-  const myReady = !!gameSetup[`${myKey}Ready`];
-  const opponentReady = !!gameSetup[`${opponentKey}Ready`];
+  const roomReadyState = resolveRoomReadyState(room, gameSetup);
+  const myReady = myKey === 'p1' ? roomReadyState.p1Ready : roomReadyState.p2Ready;
+  const opponentReady = opponentKey === 'p1' ? roomReadyState.p1Ready : roomReadyState.p2Ready;
   const canToggleReady = effectiveMyMode !== 'custom' || unplacedPool.length === 0;
 
   // 룸 설정 기반으로 턴 제한시간/돌 제거 승리 기준값을 정규화합니다.
-  const turnLimitSeconds = Number.isFinite(Number(room?.turnSeconds)) ? Math.min(600, Math.max(1, Math.floor(Number(room.turnSeconds)))) : 60;
-  const stoneCaptureWinTarget = Number.isFinite(Number(room?.omokStoneTarget))
-    ? Math.min(12, Math.max(6, Math.floor(Number(room.omokStoneTarget))))
-    : defaultStoneCaptureWinTarget;
+  const turnLimitSeconds = normalizeTurnSeconds(room?.turnSeconds);
+  const stoneCaptureWinTarget = normalizeOmokStoneTarget(room?.omokStoneTarget, defaultStoneCaptureWinTarget);
 
   // 장기 포진 선택 카드(UI)용 프리뷰 목록을 생성합니다.
   const formationPreviewItems = useMemo(

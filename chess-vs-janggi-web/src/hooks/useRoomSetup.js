@@ -3,15 +3,10 @@ import {
   FACTIONS,
   GAME_RULES,
   MAP_TYPES,
-  OMOK_STONE_TARGET_DEFAULT,
-  OMOK_STONE_TARGET_MAX,
-  OMOK_STONE_TARGET_MIN,
   OMOK_STONE_TARGET_OPTIONS,
   PIECE_COLORS,
-  TURN_SECONDS_DEFAULT,
-  TURN_SECONDS_MAX,
-  TURN_SECONDS_MIN,
 } from '@/game/constants';
+import { normalizeOmokStoneTarget, normalizeTurnSeconds } from '@/game/room-settings';
 
 export const normalizeRule = (rule) => {
   const ruleMap = {
@@ -39,10 +34,8 @@ export function useRoomSetup({ room, user, onUpdateRoomSettings, isHost, isP2Joi
   const p2Faction = getFactionByCode(room?.p2Faction, FACTIONS.JANGGI);
   const p1Color = room?.p1Color || 'white';
   const p2Color = room?.p2Color || 'black';
-  const omokStoneTarget = Number.isFinite(Number(room?.omokStoneTarget))
-    ? Math.min(OMOK_STONE_TARGET_MAX, Math.max(OMOK_STONE_TARGET_MIN, Math.floor(Number(room.omokStoneTarget))))
-    : OMOK_STONE_TARGET_DEFAULT;
-  const roomTurnSeconds = Number.isFinite(Number(room?.turnSeconds)) ? Number(room.turnSeconds) : TURN_SECONDS_DEFAULT;
+  const omokStoneTarget = normalizeOmokStoneTarget(room?.omokStoneTarget);
+  const roomTurnSeconds = normalizeTurnSeconds(room?.turnSeconds);
 
   const [countdown, setCountdown] = useState(5);
   const [ruleChanged, setRuleChanged] = useState(false);
@@ -201,7 +194,7 @@ export function useRoomSetup({ room, user, onUpdateRoomSettings, isHost, isP2Joi
 
     const parsed = Number(inputValue);
     if (!Number.isFinite(parsed)) return;
-    const normalized = Math.min(TURN_SECONDS_MAX, Math.max(TURN_SECONDS_MIN, Math.floor(parsed)));
+    const normalized = normalizeTurnSeconds(parsed);
     onUpdateRoomSettings?.({ turnSeconds: normalized });
   };
 
@@ -211,7 +204,7 @@ export function useRoomSetup({ room, user, onUpdateRoomSettings, isHost, isP2Joi
       return;
     }
 
-    const normalized = Math.min(TURN_SECONDS_MAX, Math.max(TURN_SECONDS_MIN, Math.floor(Number(turnSecondsInput))));
+    const normalized = normalizeTurnSeconds(Number(turnSecondsInput));
     setTurnSecondsInput(String(normalized));
     if (!isHostSettingsDisabled) {
       onUpdateRoomSettings?.({ turnSeconds: normalized });
@@ -221,7 +214,7 @@ export function useRoomSetup({ room, user, onUpdateRoomSettings, isHost, isP2Joi
   const handleOmokStoneTargetChange = (e) => {
     const parsed = Number(e.target.value);
     if (!Number.isFinite(parsed)) return;
-    const normalized = Math.min(OMOK_STONE_TARGET_MAX, Math.max(OMOK_STONE_TARGET_MIN, Math.floor(parsed)));
+    const normalized = normalizeOmokStoneTarget(parsed);
     if (!getIsOmokTargetEditable()) return;
     onUpdateRoomSettings?.({ omokStoneTarget: normalized });
   };

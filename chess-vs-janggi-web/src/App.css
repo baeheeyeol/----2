@@ -9,6 +9,23 @@
   display: flex; /* 좌우 배치를 위한 Flexbox */ 
   flex: 1; /* 헤더 제외 남은 공간 모두 차지 */ 
   overflow: hidden; /* 스크롤바 관리 */
+  position: relative;
+}
+
+.socket-connection-banner {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background-color: var(--bg-dark-depth-2);
+  color: var(--text-sub);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 /* 좌측 방 목록 (넓게) */
@@ -126,5 +143,11 @@ h2 {
 
   .forfeit-result-body {
     font-size: 22px;
+  }
+
+  .socket-connection-banner {
+    top: 6px;
+    width: min(92vw, 420px);
+    text-align: center;
   }
 }
